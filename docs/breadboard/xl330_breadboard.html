@@ -264,8 +264,8 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
   <section aria-labelledby="bb-h">
     <h2 id="bb-h">面包板布局</h2>
     <div class="seg" role="group" aria-label="面包板尺寸">
-      <button type="button" class="segbtn" data-l="half" id="seg-half">30 列 · 400 孔</button>
-      <button type="button" class="segbtn" data-l="mini" id="seg-mini">17 列 · 170 孔</button>
+      <button type="button" class="segbtn" data-l="half" id="seg-half">30 列 · 400 孔（推荐）</button>
+      <button type="button" class="segbtn" data-l="mini" id="seg-mini">17 列 · 170 孔（更小时用）</button>
       <button type="button" class="segbtn" data-l="full" id="seg-full">63 列 · 830 孔</button>
     </div>
     <p class="lede" id="l-intro"></p>
@@ -349,6 +349,25 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <p><b>R3 100k</b>：MCU 复位或还没初始化时，DIR 默认为低，241 保持接收，不会去抢总线。</p>
       <p class="cap">TXB0104 要求它两侧的上下拉电阻不小于 50kΩ，所以 R2、R3 用 100k。R1 在 241 一侧，不受这个限制。</p>
     </div>
+  </section>
+
+  <section aria-labelledby="t-h">
+    <h2 id="t-h">第一次通信测试</h2>
+    <p class="lede">驱动代码在仓库的 <code>firmware/</code> 里，只需要用 KM1M7C 的 SDK 实现 5 个函数（DIR 引脚、UART 收发）。<code>dxl_example_run()</code> 会依次做下面三步，每一步都打印结果。</p>
+    <ol class="steps">
+      <li><b>Ping</b>：发 <code>FF FF FD 00 01 03 00 01 19 4E</code>，收到应答就说明接线、DIR、波特率都对了。XL330-M288 的型号是 1200，M077 是 1190。</li>
+      <li><b>LED 闪 3 下</b>：往地址 65 写 1 再写 0。LED 亮了说明写入正常。</li>
+      <li><b>舵机来回转</b>：打开扭矩（地址 64），在 1024 和 3072 两个位置之间来回，每次读回当前位置（地址 132）。</li>
+    </ol>
+    <div class="tbl"><table>
+      <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
+      <tbody>
+        <tr><td style="font-family:var(--sans)">ping 一直没有应答</td><td>舵机上电时 LED 有没有闪；波特率是不是 57600；MCU TX 是否接到 B2、RX 是否接到 B1；上电后（DIR=0）DATA 列对 GND 是否约 3.3V；DIR=1 时 241 第 7 脚是否约 3.3V。</td></tr>
+        <tr><td style="font-family:var(--sans)">偶尔有应答，经常 CRC 错误</td><td>DIR 切得太早：换成等“发送完成”标志。也检查 GND 是否都连在一起。</td></tr>
+        <tr><td style="font-family:var(--sans)">RX 收到的是自己刚发出去的字节</td><td>1OE 和 2OE 接反了，两个缓冲器同时打开。核对 S6、S7 两根线。</td></tr>
+        <tr><td style="font-family:var(--sans)">舵机一转 MCU 就复位或通信中断</td><td>舵机电源和 MCU 的 5V 接在了一起，或者外部电源电流不够。确认外部 5V 只接舵机 VDD，100µF 电容接好。</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section class="aside" aria-labelledby="pw-h">
