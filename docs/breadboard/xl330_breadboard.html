@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>XL330 面包板接线</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: bench reference sheet. One column of sections; wide drawings scroll inside their own frame. */
+:root{
+  --bg:#f4f6f4; --surface:#ffffff; --ink:#1b2220; --muted:#5a6561; --line:#d6ddd9; --accent:#0e6a5a; --accent-soft:#e1efea;
+  --board:#f1efe8; --board-edge:#cbc6b9; --hole:#9a9486; --groove:#dfdbd0;
+  --chip:#262a2c; --chip-ink:#f1f2ee;
+  --w5:#d23b2f; --w33:#de7410; --wg:#2a2f2e; --wrx:#2a9147; --wtx:#b38a00; --wdir:#2c68cc; --wdata:#8a4cc4; --wext:#962b1f; --part:#a87f45;
+  --warn-bg:#fff4e6; --warn-ink:#7a3d00;
+  --sans:"Noto Sans SC",-apple-system,"PingFang SC","Hiragino Sans","Microsoft YaHei",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121615; --surface:#1a201e; --ink:#e5ebe8; --muted:#97a39e; --line:#2c3431; --accent:#4cc2a6; --accent-soft:#183029;
+  --board:#272926; --board-edge:#3b3e39; --hole:#78736a; --groove:#1f211e;
+  --chip:#0b0d0e; --chip-ink:#e5ebe8;
+  --w5:#f0574b; --w33:#f59a3b; --wg:#c8cfcb; --wrx:#4fc56d; --wtx:#e7c43a; --wdir:#5e98f0; --wdata:#b483e8; --wext:#d9715d; --part:#cfa66b;
+  --warn-bg:#2d2214; --warn-ink:#f5c98d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121615; --surface:#1a201e; --ink:#e5ebe8; --muted:#97a39e; --line:#2c3431; --accent:#4cc2a6; --accent-soft:#183029;
+  --board:#272926; --board-edge:#3b3e39; --hole:#78736a; --groove:#1f211e;
+  --chip:#0b0d0e; --chip-ink:#e5ebe8;
+  --w5:#f0574b; --w33:#f59a3b; --wg:#c8cfcb; --wrx:#4fc56d; --wtx:#e7c43a; --wdir:#5e98f0; --wdata:#b483e8; --wext:#d9715d; --part:#cfa66b;
+  --warn-bg:#2d2214; --warn-ink:#f5c98d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;padding-inline:16px;padding-block:24px 64px}
+main{max-width:1060px;margin:0 auto;display:grid;gap:40px}
+h1,h2,h3{text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:clamp(24px,5vw,32px);font-weight:700;letter-spacing:.01em}
+h2{font-size:20px;font-weight:700}
+h3{font-size:15px;font-weight:700}
+p{margin:0;max-width:68ch}
+code,.mono{font-family:var(--mono);font-size:.92em}
+section{display:grid;gap:14px;min-width:0}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-family:var(--mono);font-size:13px}
+.chain span{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.chain i{font-style:normal;color:var(--muted)}
+.lede{color:var(--muted)}
+.warn{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
+.warn ol{margin:0;padding-left:1.3em;display:grid;gap:6px}
+.frame{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.frame svg{display:block;min-width:900px;width:100%;height:auto}
+.cap{font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:18px;height:4px;border-radius:2px;display:inline-block;flex:none}
+.c-5{background:var(--w5)}.c-33{background:var(--w33)}.c-g{background:var(--wg)}.c-rx{background:var(--wrx)}.c-tx{background:var(--wtx)}.c-dir{background:var(--wdir)}.c-data{background:var(--wdata)}.c-ext{background:var(--wext)}.c-part{background:var(--part)}
+/* schematic */
+.sch text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.sch .ttl{font-family:var(--sans);font-size:14px;font-weight:700;fill:var(--ink)}
+.sch .bx{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.sch .res{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+.ln{fill:none;stroke-width:2.5;stroke-linecap:round}
+.s-rx{stroke:var(--wrx)}.s-tx{stroke:var(--wtx)}.s-dir{stroke:var(--wdir)}.s-data{stroke:var(--wdata)}.s-5{stroke:var(--w5)}.s-33{stroke:var(--w33)}.s-g{stroke:var(--wg)}.s-ext{stroke:var(--wext)}.s-mut{stroke:var(--muted)}
+.sch text.t-rx{fill:var(--wrx);font-weight:600}.sch text.t-tx{fill:var(--wtx);font-weight:600}.sch text.t-dir{fill:var(--wdir);font-weight:600}.sch text.t-data{fill:var(--wdata);font-weight:600}
+.sch text.t-5{fill:var(--w5);font-weight:600}.sch text.t-33{fill:var(--w33);font-weight:600}.sch text.t-g{fill:var(--wg);font-weight:600}.sch text.t-ext{fill:var(--wext);font-weight:600}
+.d-rx{fill:var(--wrx)}.d-dir{fill:var(--wdir)}.d-data{fill:var(--wdata)}
+/* breadboard */
+.bb .board{fill:var(--board);stroke:var(--board-edge);stroke-width:1.5}
+.bb .groove{fill:var(--groove)}
+.bb .hole{fill:var(--hole)}
+.bb text{font-family:var(--mono);font-size:10px;fill:var(--muted)}
+.bb .pinlab{font-size:11px;fill:var(--ink);font-weight:600}
+.bb .mcu{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.bb .adapter{fill:#2f6e4f;opacity:.9}
+.bb .chipbody{fill:var(--chip)}
+.bb .chiptxt{fill:var(--chip-ink);font-size:10px;font-weight:600}
+.bb .pin{fill:#d8b25a}
+.bb .p1{fill:var(--chip-ink)}
+.bb .rail-5{stroke:var(--w5);stroke-width:1.5}.bb .rail-g{stroke:var(--wg);stroke-width:1.5;opacity:.6}.bb .rail-33{stroke:var(--w33);stroke-width:1.5}
+.bb g.w path{fill:none;stroke-width:3;stroke-linecap:round}
+.bb g.w{transition:opacity .15s}
+.bb.has-sel g.w:not(.sel){opacity:.15}
+.bb g.w.done{opacity:.4}
+.bb g.w.sel{opacity:1}
+.bb g.w.sel path{stroke-width:5}
+.bb .rbody{fill:var(--part);stroke:var(--ink);stroke-width:.8}
+.bb .ebody{fill:var(--surface);stroke:var(--part);stroke-width:2}
+/* column map */
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:12.5px}
+td:first-child{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.grp td{background:var(--accent-soft);font-family:var(--sans);font-weight:700;color:var(--ink)}
+/* pins form */
+.pins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.pins label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.pins input{font:inherit;font-family:var(--mono);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.pins input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* checklist */
+.progress{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.bar{flex:1 1 200px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+.count{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.btn{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.danger{border-color:var(--w5);color:var(--w5)}
+.stage{display:grid;gap:6px}
+.stage h3{display:flex;gap:10px;align-items:baseline}
+.stage h3 .n{font-family:var(--mono);color:var(--accent)}
+.stage p.cap{margin-bottom:2px}
+ul.items{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.item{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.item.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.item.done .what{text-decoration:line-through;text-decoration-color:var(--muted);color:var(--muted)}
+.item input{width:20px;height:20px;margin:2px 0 0;accent-color:var(--accent);cursor:pointer}
+.rowbtn{all:unset;display:grid;gap:2px;cursor:pointer;min-width:0}
+.rowbtn:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.what{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-family:var(--mono);font-size:14px;font-weight:600}
+.tag{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+.note{font-size:13px;color:var(--muted)}
+.id{font-family:var(--mono);font-size:11px;color:var(--muted)}
+/* lists */
+.bom{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 24px;margin:0;padding:0;list-style:none}
+.bom li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:6px 0;font-size:14px}
+.bom li b{font-weight:500}
+.bom li span{color:var(--muted);font-family:var(--mono);font-size:13px;white-space:nowrap}
+ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.two > div{display:grid;gap:10px;align-content:start;min-width:0}
+.aside{border-left:3px solid var(--accent);border-radius:0;padding:4px 0 4px 14px;display:grid;gap:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<main>
+  <header style="display:grid;gap:12px">
+    <div class="eyebrow">面包板接线 · 半双工 TTL</div>
+    <h1>XL330 面包板接线</h1>
+    <div class="chain" aria-label="信号链">
+      <span>PC</span><i>USB</i><span>KM1M7C · 5V</span><i>↔</i><span>TXB0104</span><i>↔</i><span>74LVC2G241 · 3.3V</span><i>↔</i><span>XL330</span>
+    </div>
+    <p class="lede">TXB0104 把 MCU 的 5V 信号转成 3.3V。74LVC2G241 把 TX、RX 两根线合成舵机需要的一根 DATA 线，由 DIR 决定此刻是发送还是接收。PC 只通过 MCU 板的 USB 连接，不需要另外接线。</p>
+  </header>
+
+  <section class="warn" aria-labelledby="w-h">
+    <h2 id="w-h" style="font-size:16px">动手前先看这四条</h2>
+    <ol>
+      <li>面包板上下两条红色电源轨在这里用途不同：<b>上面红轨 = 5V，下面红轨 = 3.3V</b>。先用胶带写上标注。</li>
+      <li>两路 5V 不能接在一起。外部 5V 电源只接舵机 VDD；MCU 板的 5V 只接上面红轨。</li>
+      <li>所有 GND 必须连在一起：MCU、外部电源、两颗芯片、舵机。</li>
+      <li>转接板的 1 脚在左下角（芯片上的圆点那一侧）。如果你的 TXB0104 是成品模块（引脚上印着 VA、VB、A1…），按丝印名字接，列号只作参考。</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="sch-h">
+    <h2 id="sch-h">电路图</h2>
+    <div class="frame">
+      <svg class="sch" viewBox="0 0 1060 345" role="img" aria-labelledby="sch-t sch-d">
+        <title id="sch-t">XL330 通信电路原理图</title>
+        <desc id="sch-d">KM1M7C 的 RX、TX、DIR 经 TXB0104 从 5V 转为 3.3V，再接 74LVC2G241。241 的 2Y 和 1A 合并成 DATA 线接 XL330。R1 10k 上拉 DATA，R2 100k 上拉 RX，R3 100k 下拉 DIR。</desc>
+        <!-- PC -->
+        <rect class="bx" x="10" y="130" width="70" height="60" rx="6"/>
+        <text class="ttl" x="45" y="165" text-anchor="middle">PC</text>
+        <line class="ln s-mut" x1="80" y1="160" x2="120" y2="160"/>
+        <text x="100" y="152" text-anchor="middle">USB</text>
+        <!-- MCU -->
+        <rect class="bx" x="120" y="80" width="160" height="215" rx="6"/>
+        <text class="ttl" x="200" y="104" text-anchor="middle">KM1M7C</text>
+        <text x="160" y="122" text-anchor="middle">5V</text>
+        <text x="220" y="122" text-anchor="middle">3V3</text>
+        <text x="272" y="144" text-anchor="end">RX</text>
+        <text x="272" y="184" text-anchor="end">TX</text>
+        <text x="272" y="224" text-anchor="end">GPIO</text>
+        <text x="200" y="262" text-anchor="middle">IO 电平 5V</text>
+        <text x="200" y="286" text-anchor="middle">GND</text>
+        <line class="ln s-5" x1="160" y1="80" x2="160" y2="62"/><text class="t-5" x="160" y="55" text-anchor="middle">+5V</text>
+        <line class="ln s-33" x1="220" y1="80" x2="220" y2="62"/><text class="t-33" x="220" y="55" text-anchor="middle">+3.3V</text>
+        <line class="ln s-g" x1="200" y1="295" x2="200" y2="313"/><text class="t-g" x="200" y="329" text-anchor="middle">GND</text>
+        <!-- MCU <-> TXB -->
+        <line class="ln s-rx" x1="280" y1="140" x2="400" y2="140"/><text class="t-rx" x="340" y="132" text-anchor="middle">← RX</text>
+        <line class="ln s-tx" x1="280" y1="180" x2="400" y2="180"/><text class="t-tx" x="340" y="172" text-anchor="middle">TX →</text>
+        <line class="ln s-dir" x1="280" y1="220" x2="400" y2="220"/><text class="t-dir" x="340" y="212" text-anchor="middle">DIR →</text>
+        <!-- TXB0104 -->
+        <rect class="bx" x="400" y="80" width="180" height="215" rx="6"/>
+        <text class="ttl" x="490" y="104" text-anchor="middle">TXB0104</text>
+        <text x="432" y="122" text-anchor="middle">14 VCCB</text>
+        <text x="550" y="122" text-anchor="middle">VCCA 1</text>
+        <text x="408" y="144">13 B1</text><text x="408" y="184">12 B2</text><text x="408" y="224">11 B3</text><text x="408" y="259">10 B4</text>
+        <text x="572" y="144" text-anchor="end">A1 2</text><text x="572" y="184" text-anchor="end">A2 3</text><text x="572" y="224" text-anchor="end">A3 4</text><text x="572" y="259" text-anchor="end">A4 5</text>
+        <text x="432" y="286" text-anchor="middle">8 OE</text>
+        <text x="550" y="286" text-anchor="middle">GND 7</text>
+        <line class="ln s-5" x1="430" y1="80" x2="430" y2="62"/><text class="t-5" x="430" y="55" text-anchor="middle">+5V</text>
+        <line class="ln s-33" x1="550" y1="80" x2="550" y2="62"/><text class="t-33" x="550" y="55" text-anchor="middle">+3.3V</text>
+        <line class="ln s-33" x1="430" y1="295" x2="430" y2="313"/><text class="t-33" x="430" y="329" text-anchor="middle">+3.3V</text>
+        <line class="ln s-g" x1="550" y1="295" x2="550" y2="313"/><text class="t-g" x="550" y="329" text-anchor="middle">GND</text>
+        <line class="ln s-mut" x1="386" y1="255" x2="400" y2="255"/><text x="381" y="259" text-anchor="end">空</text>
+        <line class="ln s-g" x1="580" y1="255" x2="600" y2="255"/><text class="t-g" x="604" y="259">GND</text>
+        <!-- TXB <-> 241 -->
+        <line class="ln s-rx" x1="580" y1="140" x2="720" y2="140"/><text class="t-rx" x="692" y="132" text-anchor="middle">← RX</text>
+        <line class="ln s-tx" x1="580" y1="180" x2="720" y2="180"/><text class="t-tx" x="650" y="172" text-anchor="middle">TX →</text>
+        <line class="ln s-dir" x1="580" y1="220" x2="700" y2="220"/><text class="t-dir" x="615" y="212" text-anchor="middle">DIR →</text>
+        <line class="ln s-dir" x1="700" y1="206" x2="700" y2="236"/>
+        <line class="ln s-dir" x1="700" y1="206" x2="720" y2="206"/>
+        <line class="ln s-dir" x1="700" y1="236" x2="720" y2="236"/>
+        <circle class="d-dir" cx="700" cy="220" r="4"/>
+        <!-- R2 RX pull-up -->
+        <circle class="d-rx" cx="650" cy="140" r="4"/>
+        <line class="ln s-rx" x1="650" y1="140" x2="650" y2="120"/>
+        <rect class="res" x="644" y="90" width="12" height="30" rx="2"/>
+        <line class="ln s-33" x1="650" y1="90" x2="650" y2="72"/><text class="t-33" x="650" y="64" text-anchor="middle">+3.3V</text>
+        <text x="662" y="109">R2 100k</text>
+        <!-- R3 DIR pull-down -->
+        <circle class="d-dir" cx="650" cy="220" r="4"/>
+        <line class="ln s-dir" x1="650" y1="220" x2="650" y2="250"/>
+        <rect class="res" x="644" y="250" width="12" height="30" rx="2"/>
+        <line class="ln s-g" x1="650" y1="280" x2="650" y2="300"/><text class="t-g" x="650" y="315" text-anchor="middle">GND</text>
+        <text x="662" y="269">R3 100k</text>
+        <!-- 74LVC2G241 -->
+        <rect class="bx" x="720" y="80" width="150" height="215" rx="6"/>
+        <text class="ttl" x="795" y="104" text-anchor="middle">74LVC2G241</text>
+        <text x="795" y="122" text-anchor="middle">VCC 8</text>
+        <text x="728" y="144">6 1Y</text><text x="728" y="184">5 2A</text><text x="728" y="210">7 2OE</text><text x="728" y="240">1 1OE</text>
+        <text x="862" y="144" text-anchor="end">1A 2</text><text x="862" y="184" text-anchor="end">2Y 3</text>
+        <text x="795" y="286" text-anchor="middle">GND 4</text>
+        <line class="ln s-33" x1="795" y1="80" x2="795" y2="62"/><text class="t-33" x="795" y="55" text-anchor="middle">+3.3V</text>
+        <line class="ln s-g" x1="795" y1="295" x2="795" y2="313"/><text class="t-g" x="795" y="329" text-anchor="middle">GND</text>
+        <!-- DATA bus -->
+        <line class="ln s-data" x1="870" y1="140" x2="910" y2="140"/>
+        <line class="ln s-data" x1="870" y1="180" x2="910" y2="180"/>
+        <line class="ln s-data" x1="910" y1="140" x2="910" y2="180"/>
+        <line class="ln s-data" x1="910" y1="160" x2="950" y2="160"/>
+        <circle class="d-data" cx="910" cy="160" r="4"/>
+        <circle class="d-data" cx="910" cy="140" r="4"/>
+        <text class="t-data" x="930" y="152" text-anchor="middle">DATA</text>
+        <!-- R1 DATA pull-up -->
+        <line class="ln s-data" x1="910" y1="140" x2="910" y2="122"/>
+        <rect class="res" x="904" y="92" width="12" height="30" rx="2"/>
+        <line class="ln s-33" x1="910" y1="92" x2="910" y2="74"/><text class="t-33" x="910" y="66" text-anchor="middle">+3.3V</text>
+        <text x="922" y="111">R1 10k</text>
+        <!-- XL330 -->
+        <rect class="bx" x="950" y="120" width="95" height="130" rx="6"/>
+        <text class="ttl" x="997" y="142" text-anchor="middle">XL330</text>
+        <text x="958" y="164">3 DATA</text>
+        <text x="958" y="199">2 VDD</text>
+        <text x="958" y="229">1 GND</text>
+        <line class="ln s-ext" x1="950" y1="195" x2="930" y2="195"/><text class="t-ext" x="926" y="199" text-anchor="end">外部 5V</text>
+        <line class="ln s-g" x1="950" y1="225" x2="930" y2="225"/><text class="t-g" x="926" y="229" text-anchor="end">GND</text>
+      </svg>
+    </div>
+    <p class="cap">同名的电源标签（+5V、+3.3V、GND）表示接在同一条电源线上。DIR = 1 时 2Y 打开、1Y 关闭，MCU 发送；DIR = 0 时反过来，舵机应答。图里的数字是芯片引脚号。</p>
+    <div class="legend" aria-label="线色图例">
+      <span><i class="sw c-5"></i>5V</span><span><i class="sw c-33"></i>3.3V</span><span><i class="sw c-g"></i>GND</span><span><i class="sw c-tx"></i>TX</span><span><i class="sw c-rx"></i>RX</span><span><i class="sw c-dir"></i>DIR</span><span><i class="sw c-data"></i>DATA</span><span><i class="sw c-ext"></i>舵机外部 5V</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="bb-h">
+    <h2 id="bb-h">面包板布局</h2>
+    <p class="lede">按全尺寸面包板（830 孔）画，列号从左往右数。点下方清单中的任意一条，图上会只突出显示那一根线。</p>
+    <div class="frame"><svg id="bb" class="bb" viewBox="0 0 1010 350" role="img" aria-labelledby="bb-t"><title id="bb-t">面包板元件位置与接线图</title></svg></div>
+    <div class="legend">
+      <span><i class="sw c-5"></i>上红轨 = 5V</span><span><i class="sw c-33"></i>下红轨 = 3.3V</span><span><i class="sw c-g"></i>蓝轨 = GND</span><span><i class="sw c-part"></i>电阻 / 电容</span>
+    </div>
+  </section>
+
+  <section aria-labelledby="col-h">
+    <h2 id="col-h">列号对照</h2>
+    <p class="lede">芯片跨在中间凹槽上，同一列的上半部分（a–e）和下半部分（f–j）互不相通。转接板的针插在哪一行都可以，列对就行。</p>
+    <div class="tbl"><table>
+      <thead><tr><th>列</th><th>上半 a–e</th><th>下半 f–j</th></tr></thead>
+      <tbody>
+        <tr class="grp"><td colspan="3">TXB0104（第 10–16 列）</td></tr>
+        <tr><td>10</td><td>14 VCCB · 5V</td><td>1 VCCA · 3.3V</td></tr>
+        <tr><td>11</td><td>13 B1 · RX（接 MCU）</td><td>2 A1 · RX（接 241）</td></tr>
+        <tr><td>12</td><td>12 B2 · TX（接 MCU）</td><td>3 A2 · TX（接 241）</td></tr>
+        <tr><td>13</td><td>11 B3 · DIR（接 MCU）</td><td>4 A3 · DIR（接 241）</td></tr>
+        <tr><td>14</td><td>10 B4 · 不接</td><td>5 A4 · 接 GND</td></tr>
+        <tr><td>15</td><td>9 NC</td><td>6 NC</td></tr>
+        <tr><td>16</td><td>8 OE · 接 3.3V</td><td>7 GND</td></tr>
+        <tr class="grp"><td colspan="3">74LVC2G241（第 24–27 列）</td></tr>
+        <tr><td>24</td><td>8 VCC · 3.3V</td><td>1 1OE · DIR</td></tr>
+        <tr><td>25</td><td>7 2OE · DIR</td><td>2 1A · DATA</td></tr>
+        <tr><td>26</td><td>6 1Y · RX</td><td>3 2Y · DATA</td></tr>
+        <tr><td>27</td><td>5 2A · TX</td><td>4 GND</td></tr>
+        <tr class="grp"><td colspan="3">其他</td></tr>
+        <tr><td>32</td><td>—</td><td>DATA 汇合点（2Y、1A、R1、舵机）</td></tr>
+        <tr><td>38</td><td>—</td><td>舵机 3 号线 DATA</td></tr>
+        <tr><td>39</td><td>—</td><td>舵机 2 号线 VDD（外部 5V）</td></tr>
+        <tr><td>40</td><td>—</td><td>舵机 1 号线 GND</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="pin-h">
+    <h2 id="pin-h">先填 MCU 引脚</h2>
+    <p class="lede">在 M7C 板上选一组 UART 的 TX、RX，再选一个普通 GPIO 做 DIR。填进去后，清单里会显示你的引脚名。只保存在这台设备的浏览器里。</p>
+    <div class="pins">
+      <label for="pin-tx">UART TX<input id="pin-tx" data-pin="tx" placeholder="例：P20 / TXD0" autocomplete="off"></label>
+      <label for="pin-rx">UART RX<input id="pin-rx" data-pin="rx" placeholder="例：P21 / RXD0" autocomplete="off"></label>
+      <label for="pin-dir">GPIO（DIR）<input id="pin-dir" data-pin="dir" placeholder="例：P30" autocomplete="off"></label>
+    </div>
+  </section>
+
+  <section aria-labelledby="ck-h">
+    <h2 id="ck-h">接线清单</h2>
+    <div class="progress">
+      <div class="bar" aria-hidden="true"><i id="barfill"></i></div>
+      <span class="count" id="count" aria-live="polite">0 / 0</span>
+      <button class="btn" id="reset" type="button">清空勾选</button>
+    </div>
+    <p class="cap">按顺序接：插一根，勾一根。点文字可以在上面的布局图里突出这根线。全程断电操作。</p>
+    <div id="stages" style="display:grid;gap:22px"></div>
+  </section>
+
+  <section class="two" aria-label="检查与物料">
+    <div>
+      <h2>上电前检查</h2>
+      <ol class="steps">
+        <li>完成第 1 组后、插芯片之前：万用表打到蜂鸣档，测上红轨和蓝轨、下红轨和蓝轨，都不能响。</li>
+        <li>插上 MCU 的 USB，测上红轨约 5V，下红轨约 3.3V。确认后断电。</li>
+        <li>接完第 2、3 组后再上电：TXB0104 第 1 脚 3.3V、第 14 脚 5V，74LVC2G241 第 8 脚 3.3V。</li>
+        <li>舵机先别插。接通外部电源，测第 39 列对第 40 列约 5V。</li>
+        <li>全部接好后的上电顺序：先插 MCU 的 USB，再开外部 5V。断电顺序相反。</li>
+        <li>舵机上电时 LED 会闪一下，说明供电正常。</li>
+      </ol>
+    </div>
+    <div>
+      <h2>物料清单</h2>
+      <ul class="bom">
+        <li><b>全尺寸面包板（830 孔）</b><span>×1</span></li>
+        <li><b>TXB0104 + 14 脚转 DIP 转接板</b><span>×1</span></li>
+        <li><b>SN74LVC2G241 + 8 脚转接板</b><span>×1</span></li>
+        <li><b>电阻 10kΩ</b><span>×1</span></li>
+        <li><b>电阻 100kΩ</b><span>×2</span></li>
+        <li><b>瓷片电容 0.1µF</b><span>×3</span></li>
+        <li><b>电解电容 100µF / 16V</b><span>×1</span></li>
+        <li><b>3 针排针</b><span>×1</span></li>
+        <li><b>XL330 转杜邦线（一端 JST EH 3P）</b><span>×1</span></li>
+        <li><b>外部 5V 电源（2A 以上）+ DC 转接线端子</b><span>×1</span></li>
+        <li><b>杜邦线：红 橙 黑 黄 绿 蓝 紫</b><span>若干</span></li>
+      </ul>
+      <p class="cap">转接板要和芯片封装匹配。74LVC2G241 有 DCU（VSSOP，0.5mm 间距）和 DCT（SM8，0.65mm 间距）两种，买之前看清芯片型号后缀。</p>
+    </div>
+  </section>
+
+  <section class="two" aria-label="软件与备选">
+    <div class="aside">
+      <h2>软件要点</h2>
+      <p>XL330 出厂设置：ID 1，波特率 57600，Protocol 2.0。</p>
+      <p>发送一包指令的顺序：DIR 置 1 → 写完所有字节 → 等到 UART 的“发送完成”标志（不是“发送缓冲空”）→ DIR 置 0 → 接收舵机应答。DIR 切得太早会截断最后一个字节，切得太晚会丢掉应答的开头。</p>
+      <p>发送期间 1Y 是关闭的，MCU 的 RX 收不到自己发出的数据，不会有回显。</p>
+    </div>
+    <div class="aside">
+      <h2>三个电阻的作用</h2>
+      <p><b>R1 10k</b>：收发切换的瞬间没人驱动 DATA，上拉让它保持空闲的高电平。</p>
+      <p><b>R2 100k</b>：发送时 1Y 关闭，RX 线悬空，上拉让 MCU 读到的是空闲状态而不是噪声。</p>
+      <p><b>R3 100k</b>：MCU 复位或还没初始化时，DIR 默认为低，241 保持接收，不会去抢总线。</p>
+      <p class="cap">TXB0104 要求它两侧的上下拉电阻不小于 50kΩ，所以 R2、R3 用 100k。R1 在 241 一侧，不受这个限制。</p>
+    </div>
+  </section>
+
+  <section class="aside" aria-labelledby="alt-h">
+    <h2 id="alt-h">另一种更简单的接法</h2>
+    <p>ROBOTIS 的资料说明 XL330 的 DATA 能耐受 5V TTL，74LVC2G241 也支持 5V 供电。所以也可以去掉 TXB0104，把 241 的 VCC 和 R1 都接 5V，MCU 的 TX、RX、DIR 直接接 241。保留 TXB0104 的好处是总线一侧是 3.3V，演示电平转换更直观。</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  const P=18, X0=130;
+  const ROWS={a:88,b:106,c:124,d:142,e:160,f:192,g:210,h:228,i:246,j:264};
+  const RAIL={T5:36,TG:54,BG:298,B3:316};
+  const MCU={'5V':[105,36],'GND':[105,54],'RX':[105,110],'TX':[105,128],'DIR':[105,146],'3V3':[105,316]};
+  const EXT={'+':[940,205],'-':[940,235]};
+  const cx=c=>X0+(c-1)*P;
+  function pt(s){
+    if(s.indexOf(':')>-1){const [k,v]=s.split(':'); if(RAIL[k]!=null) return [cx(+v),RAIL[k]]; if(k==='MCU') return MCU[v]; if(k==='EXT') return EXT[v];}
+    const m=s.match(/^(\d+)([a-j])$/); return [cx(+m[1]),ROWS[m[2]]];
+  }
+  const COL={'5':'var(--w5)','33':'var(--w33)','g':'var(--wg)','rx':'var(--wrx)','tx':'var(--wtx)','dir':'var(--wdir)','data':'var(--wdata)','ext':'var(--wext)','part':'var(--part)'};
+  const CN={'5':'红','33':'橙','g':'黑','rx':'绿','tx':'黄','dir':'蓝','data':'紫','ext':'红（外部）'};
+  const PIN=(k,d)=>'<span class="mpin" data-p="'+k+'">'+d+'</span>';
+
+  const STAGES=[
+    {t:'电源轨（先不插芯片）',d:'这一组接完先做“上电前检查”的第 1、2 步。',items:[
+      {id:'P1',k:'w',a:'MCU:5V',b:'T5:3',c:'5',w:'MCU 5V → 上红轨 3',n:'上红轨从此是 5V'},
+      {id:'P2',k:'w',a:'MCU:GND',b:'TG:4',c:'g',w:'MCU GND → 上蓝轨 4',n:''},
+      {id:'P3',k:'w',a:'MCU:3V3',b:'B3:3',c:'33',w:'MCU 3.3V → 下红轨 3',n:'下红轨从此是 3.3V。板上没有 3.3V 输出时，用 AMS1117-3.3 模块从 5V 降压'},
+      {id:'P4',k:'w',a:'TG:6',b:'BG:6',c:'g',w:'上蓝轨 6 → 下蓝轨 6',n:'把两条 GND 轨连通'}
+    ]},
+    {t:'TXB0104 供电',d:'',items:[
+      {id:'K1',k:'k',w:'插入 TXB0104 转接板',n:'第 10–16 列，跨在凹槽上，1 脚在第 10 列下侧'},
+      {id:'P5',k:'w',a:'T5:9',b:'10d',c:'5',w:'上红轨 9 → 10d',n:'14 脚 VCCB = 5V（MCU 一侧）'},
+      {id:'P6',k:'w',a:'B3:9',b:'10g',c:'33',w:'下红轨 9 → 10g',n:'1 脚 VCCA = 3.3V（241 一侧）'},
+      {id:'P7',k:'w',a:'16g',b:'BG:17',c:'g',w:'16g → 下蓝轨 17',n:'7 脚 GND'},
+      {id:'P8',k:'w',a:'16d',b:'B3:18',c:'33',w:'16d → 下红轨 18',n:'8 脚 OE 接 3.3V，芯片一直工作'},
+      {id:'P9',k:'w',a:'14g',b:'BG:14',c:'g',w:'14g → 下蓝轨 14',n:'5 脚 A4 不用，接地，不要悬空'},
+      {id:'C1',k:'c',a:'10h',b:'BG:10',c:'part',w:'0.1µF：10h ↔ 下蓝轨 10',n:'VCCA 去耦电容'},
+      {id:'C2',k:'c',a:'10c',b:'TG:10',c:'part',w:'0.1µF：10c ↔ 上蓝轨 10',n:'VCCB 去耦电容'}
+    ]},
+    {t:'74LVC2G241 供电',d:'',items:[
+      {id:'K2',k:'k',w:'插入 74LVC2G241 转接板',n:'第 24–27 列，跨在凹槽上，1 脚在第 24 列下侧'},
+      {id:'P10',k:'w',a:'B3:23',b:'24d',c:'33',w:'下红轨 23 → 24d',n:'8 脚 VCC = 3.3V'},
+      {id:'P11',k:'w',a:'27g',b:'BG:28',c:'g',w:'27g → 下蓝轨 28',n:'4 脚 GND'},
+      {id:'C3',k:'c',a:'24c',b:'TG:24',c:'part',w:'0.1µF：24c ↔ 上蓝轨 24',n:'VCC 去耦电容'}
+    ]},
+    {t:'MCU ↔ TXB0104（5V 一侧）',d:'',items:[
+      {id:'S1',k:'w',a:'11d',b:'MCU:RX',c:'rx',w:'11d → MCU '+PIN('rx','RX'),n:'13 脚 B1'},
+      {id:'S2',k:'w',a:'MCU:TX',b:'12d',c:'tx',w:'MCU '+PIN('tx','TX')+' → 12d',n:'12 脚 B2'},
+      {id:'S3',k:'w',a:'MCU:DIR',b:'13d',c:'dir',w:'MCU '+PIN('dir','GPIO')+' → 13d',n:'11 脚 B3，方向控制 DIR'}
+    ]},
+    {t:'TXB0104 ↔ 74LVC2G241（3.3V 一侧）',d:'',items:[
+      {id:'S4',k:'w',a:'26d',b:'11g',c:'rx',w:'26d → 11g',n:'241 的 1Y（6 脚）→ A1（2 脚），接收'},
+      {id:'S5',k:'w',a:'12g',b:'27d',c:'tx',w:'12g → 27d',n:'A2（3 脚）→ 241 的 2A（5 脚），发送'},
+      {id:'S6',k:'w',a:'13g',b:'25d',c:'dir',w:'13g → 25d',n:'A3（4 脚）→ 2OE（7 脚）'},
+      {id:'S7',k:'w',a:'13h',b:'24g',c:'dir',w:'13h → 24g',n:'A3（4 脚）→ 1OE（1 脚）。2OE 高电平有效、1OE 低电平有效，所以 DIR=1 发送，DIR=0 接收'},
+      {id:'R2',k:'r',a:'11i',b:'B3:11',c:'part',w:'100kΩ：11i ↔ 下红轨 11',n:'RX 上拉'},
+      {id:'R3',k:'r',a:'13i',b:'BG:13',c:'part',w:'100kΩ：13i ↔ 下蓝轨 13',n:'DIR 下拉'}
+    ]},
+    {t:'DATA 线',d:'',items:[
+      {id:'K3',k:'k',w:'插入 3 针排针：38f、39f、40f',n:'舵机线按 38 = DATA（3 号）、39 = VDD（2 号）、40 = GND（1 号）接上'},
+      {id:'S8',k:'w',a:'26g',b:'32g',c:'data',w:'26g → 32g',n:'2Y（3 脚）→ DATA'},
+      {id:'S9',k:'w',a:'25g',b:'32h',c:'data',w:'25g → 32h',n:'1A（2 脚）← DATA'},
+      {id:'R1',k:'r',a:'32j',b:'B3:33',c:'part',w:'10kΩ：32j ↔ 下红轨 33',n:'DATA 上拉到 3.3V'},
+      {id:'S10',k:'w',a:'32i',b:'38g',c:'data',w:'32i → 38g',n:'DATA → 舵机 3 号线'}
+    ]},
+    {t:'舵机电源',d:'外部 5V 电源先不要通电。',items:[
+      {id:'X1',k:'w',a:'EXT:+',b:'39g',c:'ext',w:'外部 5V + → 39g',n:'只接这里，绝对不要接到上红轨'},
+      {id:'X2',k:'w',a:'EXT:-',b:'40h',c:'g',w:'外部电源 − → 40h',n:'舵机 GND'},
+      {id:'X3',k:'w',a:'40j',b:'BG:40',c:'g',w:'40j → 下蓝轨 40',n:'舵机地和逻辑地连通'},
+      {id:'C4',k:'e',a:'39h',b:'40i',c:'part',w:'100µF：+ 脚 39h，− 脚 40i',n:'电解电容有极性，长脚是 +，接反会损坏'}
+    ]}
+  ];
+  const ALL=[]; STAGES.forEach(s=>s.items.forEach(i=>ALL.push(i)));
+
+  // storage
+  const KEY='xl330-bb-v1'; let st={done:{},pins:{}};
+  try{const raw=localStorage.getItem(KEY); if(raw){const o=JSON.parse(raw); st.done=o.done||{}; st.pins=o.pins||{};}}catch(e){}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}};
+
+  // ---------- breadboard ----------
+  const svg=document.getElementById('bb'); let h='';
+  h+='<rect class="board" x="118" y="18" width="812" height="316" rx="8"/>';
+  h+='<rect class="groove" x="118" y="169" width="812" height="14"/>';
+  h+='<line class="rail-5" x1="126" y1="27" x2="880" y2="27"/><line class="rail-g" x1="126" y1="63" x2="880" y2="63"/>';
+  h+='<line class="rail-g" x1="126" y1="289" x2="880" y2="289"/><line class="rail-33" x1="126" y1="325" x2="880" y2="325"/>';
+  const rl=[['5V',36,'t-5'],['GND',54,''],['GND',298,''],['3.3V',316,'']];
+  rl.forEach(r=>{h+='<text x="888" y="'+(r[1]+3.5)+'">'+r[0]+'</text>';});
+  for(let c=1;c<=42;c++){
+    const x=cx(c);
+    Object.values(ROWS).forEach(y=>{h+='<circle class="hole" cx="'+x+'" cy="'+y+'" r="2.2"/>';});
+    Object.values(RAIL).forEach(y=>{h+='<circle class="hole" cx="'+x+'" cy="'+y+'" r="2.2"/>';});
+    if(c===1||c%5===0){h+='<text x="'+x+'" y="78" text-anchor="middle">'+c+'</text>';}
+  }
+  Object.keys(ROWS).forEach(r=>{h+='<text x="124" y="'+(ROWS[r]+3.5)+'" text-anchor="middle">'+r+'</text>';});
+  // MCU box
+  h+='<rect class="mcu" x="8" y="22" width="97" height="306" rx="6"/>';
+  h+='<text class="pinlab" x="56" y="200" text-anchor="middle" style="font-size:12px">KM1M7C</text>';
+  const ml={'5V':'5V','GND':'GND','RX':'RX','TX':'TX','DIR':'DIR','3V3':'3.3V'};
+  Object.keys(MCU).forEach(k=>{const p=MCU[k]; h+='<text class="pinlab" x="98" y="'+(p[1]+4)+'" text-anchor="end">'+ml[k]+'</text>';});
+  // EXT box
+  h+='<rect class="mcu" x="940" y="180" width="64" height="80" rx="6"/>';
+  h+='<text class="pinlab" x="972" y="198" text-anchor="middle">外部</text><text class="pinlab" x="972" y="250" text-anchor="middle">5V 电源</text>';
+  h+='<text class="pinlab" x="948" y="209">+</text><text class="pinlab" x="948" y="239">−</text>';
+  // chips
+  function chip(c1,c2,name){
+    const x1=cx(c1)-10,x2=cx(c2)+10;
+    let s='<rect class="adapter" x="'+x1+'" y="150" width="'+(x2-x1)+'" height="52" rx="3"/>';
+    s+='<rect class="chipbody" x="'+(x1+6)+'" y="168" width="'+(x2-x1-12)+'" height="16" rx="2"/>';
+    s+='<text class="chiptxt" x="'+((x1+x2)/2)+'" y="179.5" text-anchor="middle">'+name+'</text>';
+    for(let c=c1;c<=c2;c++){s+='<circle class="pin" cx="'+cx(c)+'" cy="160" r="3"/><circle class="pin" cx="'+cx(c)+'" cy="192" r="3"/>';}
+    s+='<circle class="p1" cx="'+(cx(c1))+'" cy="176" r="2.2"/>';
+    return s;
+  }
+  h+=chip(10,16,'TXB0104');
+  h+=chip(24,27,'241');
+  // header
+  h+='<rect class="chipbody" x="'+(cx(38)-8)+'" y="185" width="'+(2*P+16)+'" height="14" rx="2"/>';
+  for(let c=38;c<=40;c++){h+='<circle class="pin" cx="'+cx(c)+'" cy="192" r="3"/>';}
+  h+='<text x="'+cx(39)+'" y="283" text-anchor="middle">舵机线</text>';
+  // wires
+  ALL.forEach(it=>{
+    if(it.k==='k') return;
+    const a=pt(it.a), b=pt(it.b), col=COL[it.c];
+    const dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy);
+    let g='<g class="w" data-id="'+it.id+'">';
+    if(it.k==='w'){
+      const bow=Math.min(26,L*0.16);
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2 - (Math.abs(dx)>4?bow:0);
+      g+='<path d="M'+a[0]+' '+a[1]+' Q'+mx+' '+my+' '+b[0]+' '+b[1]+'" style="stroke:'+col+'"/>';
+    } else {
+      g+='<path d="M'+a[0]+' '+a[1]+' L'+b[0]+' '+b[1]+'" style="stroke:var(--muted);stroke-width:1.5"/>';
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2, ang=Math.atan2(dy,dx)*180/Math.PI;
+      if(it.k==='r') g+='<rect class="rbody" x="'+(mx-8)+'" y="'+(my-3.5)+'" width="16" height="7" rx="3" transform="rotate('+ang+' '+mx+' '+my+')"/>';
+      else if(it.k==='c') g+='<ellipse class="rbody" cx="'+mx+'" cy="'+my+'" rx="5" ry="4"/>';
+      else g+='<circle class="ebody" cx="'+mx+'" cy="'+my+'" r="6"/><text x="'+(mx+9)+'" y="'+(my+3)+'" style="fill:var(--part);font-weight:600">+</text>';
+    }
+    g+='<circle cx="'+a[0]+'" cy="'+a[1]+'" r="3" style="fill:'+col+'"/><circle cx="'+b[0]+'" cy="'+b[1]+'" r="3" style="fill:'+col+'"/>';
+    g+='<title>'+it.id+'</title></g>';
+    h+=g;
+  });
+  svg.insertAdjacentHTML('beforeend',h);
+
+  // ---------- checklist ----------
+  const wrap=document.getElementById('stages'); let html='';
+  STAGES.forEach((s,si)=>{
+    html+='<div class="stage"><h3><span class="n">'+(si+1)+'</span>'+s.t+'</h3>'+(s.d?'<p class="cap">'+s.d+'</p>':'')+'<ul class="items">';
+    s.items.forEach(it=>{
+      const sw=it.k==='k'?'':(it.c==='part'?'<span class="tag"><i class="sw c-part"></i>元件</span>':'<span class="tag"><i class="sw c-'+it.c+'"></i>'+CN[it.c]+'线</span>');
+      html+='<li class="item" data-id="'+it.id+'"><input type="checkbox" id="ck-'+it.id+'" aria-label="'+it.id+' 已完成">'+
+        '<button class="rowbtn" type="button" data-id="'+it.id+'"><span class="what"><span>'+it.w+'</span>'+sw+'</span>'+
+        (it.n?'<span class="note">'+it.n+'</span>':'')+'<span class="id">'+it.id+'</span></button></li>';
+    });
+    html+='</ul></div>';
+  });
+  wrap.innerHTML=html;
+
+  const total=ALL.length;
+  function refresh(){
+    let n=0;
+    ALL.forEach(it=>{
+      const d=!!st.done[it.id]; if(d) n++;
+      const li=wrap.querySelector('li[data-id="'+it.id+'"]'); li.classList.toggle('done',d);
+      li.querySelector('input').checked=d;
+      const g=svg.querySelector('g.w[data-id="'+it.id+'"]'); if(g) g.classList.toggle('done',d);
+    });
+    document.getElementById('count').textContent=n+' / '+total;
+    document.getElementById('barfill').style.width=(n/total*100)+'%';
+  }
+  wrap.addEventListener('change',e=>{
+    const li=e.target.closest('li'); if(!li) return;
+    st.done[li.dataset.id]=e.target.checked; save(); refresh();
+  });
+  let sel=null;
+  function select(id){
+    sel=(sel===id)?null:id;
+    wrap.querySelectorAll('li.item').forEach(li=>li.classList.toggle('sel',li.dataset.id===sel));
+    svg.querySelectorAll('g.w').forEach(g=>g.classList.toggle('sel',g.dataset.id===sel));
+    svg.classList.toggle('has-sel',!!sel && !!svg.querySelector('g.w[data-id="'+sel+'"]'));
+  }
+  wrap.addEventListener('click',e=>{const b=e.target.closest('.rowbtn'); if(b) select(b.dataset.id);});
+  svg.addEventListener('click',e=>{const g=e.target.closest('g.w'); if(g) select(g.dataset.id);});
+
+  const rb=document.getElementById('reset'); let armed=false, tmr;
+  rb.addEventListener('click',()=>{
+    if(!armed){armed=true; rb.textContent='再点一次确认清空'; rb.classList.add('danger'); tmr=setTimeout(()=>{armed=false;rb.textContent='清空勾选';rb.classList.remove('danger');},3000); return;}
+    clearTimeout(tmr); armed=false; rb.textContent='清空勾选'; rb.classList.remove('danger'); st.done={}; save(); refresh();
+  });
+
+  // MCU pin names
+  const defaults={tx:'TX',rx:'RX',dir:'GPIO'};
+  function paintPins(){
+    document.querySelectorAll('.mpin').forEach(s=>{const v=(st.pins[s.dataset.p]||'').trim(); s.textContent=v?v:defaults[s.dataset.p];});
+  }
+  document.querySelectorAll('.pins input').forEach(inp=>{
+    inp.value=st.pins[inp.dataset.pin]||'';
+    inp.addEventListener('input',()=>{st.pins[inp.dataset.pin]=inp.value; save(); paintPins();});
+  });
+  paintPins(); refresh();
+})();
+</script>
+
+</body>
+</html>
