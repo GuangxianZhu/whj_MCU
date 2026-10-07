@@ -166,7 +166,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
   <section aria-labelledby="sch-h">
     <h2 id="sch-h">电路图</h2>
     <div class="frame">
-      <svg class="sch" viewBox="0 0 1060 345" role="img" aria-labelledby="sch-t sch-d">
+      <svg class="sch" viewBox="0 0 1060 360" role="img" aria-labelledby="sch-t sch-d">
         <title id="sch-t">XL330 通信电路原理图</title>
         <desc id="sch-d">KM1M7C 的 RX、TX、DIR 是 3.3V 电平，经 TXB0104 转成 5V 后接 74LVC2G241。241 的 2Y 和 1A 合并成 DATA 线接 XL330。R1 10k 把 DATA 上拉到 5V，R2 100k 把 RX 上拉到 5V，R3 100k 把 DIR 下拉到 GND。+5V 来自外部电源。</desc>
         <rect class="bx" x="10" y="130" width="70" height="60" rx="6"/>
@@ -241,8 +241,13 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <text x="958" y="164">3 DATA</text>
         <text x="958" y="199">2 VDD</text>
         <text x="958" y="229">1 GND</text>
-        <text x="997" y="272" text-anchor="middle">VDD–GND 之间</text>
-        <text x="997" y="288" text-anchor="middle">100µF + 0.1µF</text>
+        <line class="ln s-5" x1="965" y1="272" x2="1045" y2="272"/><text class="t-5" x="958" y="276" text-anchor="end">+5V</text>
+        <line class="ln s-g" x1="965" y1="316" x2="1045" y2="316"/><text class="t-g" x="958" y="320" text-anchor="end">GND</text>
+        <line class="ln s-5" x1="985" y1="272" x2="985" y2="290"/><line class="ln" style="stroke:var(--ink)" x1="973" y1="290" x2="997" y2="290"/><line class="ln" style="stroke:var(--ink)" x1="973" y1="298" x2="997" y2="298"/><line class="ln s-g" x1="985" y1="298" x2="985" y2="316"/>
+        <line class="ln s-5" x1="1030" y1="272" x2="1030" y2="290"/><line class="ln" style="stroke:var(--ink)" x1="1018" y1="290" x2="1042" y2="290"/><line class="ln" style="stroke:var(--ink)" x1="1018" y1="298" x2="1042" y2="298"/><line class="ln s-g" x1="1030" y1="298" x2="1030" y2="316"/>
+        <text x="975" y="288" text-anchor="end">+</text>
+        <text x="985" y="334" text-anchor="middle">C4 100µF</text>
+        <text x="1030" y="350" text-anchor="middle">C5 0.1µF</text>
         <line class="ln s-5" x1="950" y1="195" x2="930" y2="195"/><text class="t-5" x="926" y="199" text-anchor="end">+5V</text>
         <line class="ln s-g" x1="950" y1="225" x2="930" y2="225"/><text class="t-g" x="926" y="229" text-anchor="end">GND</text>
       </svg>
