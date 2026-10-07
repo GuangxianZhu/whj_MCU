@@ -4,10 +4,11 @@
  * Implement these five functions with the KM1M7C SDK (UART + one GPIO).
  * Everything else in dxl.c is plain C and needs no changes.
  *
- * Wiring this driver assumes (see docs/breadboard):
- *   MCU TX  -> TXB0104 B2 -> A2 -> 74LVC2G241 2A  (send path)
- *   MCU RX  <- TXB0104 B1 <- A1 <- 74LVC2G241 1Y  (receive path)
- *   MCU GPIO-> TXB0104 B3 -> A3 -> 2OE and 1OE     (DIR: 1 = send, 0 = receive)
+ * Wiring this driver assumes (see docs/breadboard). The MCU runs at 3.3V and
+ * sits on the TXB0104 A side; the 74LVC2G241 and the servo bus are at 5V:
+ *   MCU TX  -> TXB0104 A3 -> B3 -> 74LVC2G241 2A  (send path)
+ *   MCU RX  <- TXB0104 A2 <- B2 <- 74LVC2G241 1Y  (receive path)
+ *   MCU GPIO-> TXB0104 A1 -> B1 -> 2OE and 1OE     (DIR: 1 = send, 0 = receive)
  *   UART: 57600 bps, 8 data bits, no parity, 1 stop bit (XL330 factory default)
  */
 #ifndef DXL_PORT_H
