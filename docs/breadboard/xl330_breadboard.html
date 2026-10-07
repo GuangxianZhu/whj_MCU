@@ -241,11 +241,13 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <text x="958" y="164">3 DATA</text>
         <text x="958" y="199">2 VDD</text>
         <text x="958" y="229">1 GND</text>
+        <text x="997" y="272" text-anchor="middle">VDD–GND 之间</text>
+        <text x="997" y="288" text-anchor="middle">100µF + 0.1µF</text>
         <line class="ln s-5" x1="950" y1="195" x2="930" y2="195"/><text class="t-5" x="926" y="199" text-anchor="end">+5V</text>
         <line class="ln s-g" x1="950" y1="225" x2="930" y2="225"/><text class="t-g" x="926" y="229" text-anchor="end">GND</text>
       </svg>
     </div>
-    <p class="cap">同名的电源标签表示接在同一条电源线上：+5V 是外部 5V 电源（同时给舵机供电），+3.3V 来自 MCU 板。DIR = 1 时 2Y 打开、1Y 关闭，MCU 发送；DIR = 0 时反过来，舵机应答。图里的数字是芯片引脚号。TXB0104 的三个通道可以随意分配，这里按 A1 = DIR、A2 = RX、A3 = TX 接，是为了让面包板上的连线不交叉。</p>
+    <p class="cap">同名的电源标签表示接在同一条电源线上：+5V 是外部 5V 电源（同时给舵机供电），+3.3V 来自 MCU 板。DIR = 1 时 2Y 打开、1Y 关闭，MCU 发送；DIR = 0 时反过来，舵机应答。图里的数字是芯片引脚号。舵机的 VDD 和 GND 之间按 ROBOTIS 推荐电路并联 100µF 电解电容和 0.1µF 瓷片电容。TXB0104 的三个通道可以随意分配，这里按 A1 = DIR、A2 = RX、A3 = TX 接，是为了让面包板上的连线不交叉。</p>
     <div class="legend" aria-label="线色图例">
       <span><i class="sw c-5"></i>5V</span><span><i class="sw c-33"></i>3.3V</span><span><i class="sw c-g"></i>GND</span><span><i class="sw c-tx"></i>TX</span><span><i class="sw c-rx"></i>RX</span><span><i class="sw c-dir"></i>DIR</span><span><i class="sw c-data"></i>DATA</span>
     </div>
@@ -330,7 +332,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <li><b>SN74LVC2G241 + 8 脚转接板</b><span>×1</span></li>
         <li><b>电阻 10kΩ</b><span>×1</span></li>
         <li><b>电阻 100kΩ</b><span>×2</span></li>
-        <li><b>瓷片电容 0.1µF</b><span>×2</span></li>
+        <li><b>瓷片电容 0.1µF</b><span>×3</span></li>
         <li><b>电解电容 100µF / 16V（脚距 2.5mm 以内）</b><span>×1</span></li>
         <li><b>3 针排针</b><span>×1</span></li>
         <li><b>XL330 转杜邦线（一端 JST EH 3P）</b><span>×1</span></li>
@@ -408,7 +410,8 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     {t:'舵机排针',items:[
       ['K3','k','插入 3 针排针：2B、3B、4B','','','舵机线按 2 = GND（1 号）、3 = VDD（2 号）、4 = DATA（3 号）接上'],
       ['P2','w','V1N:D','2D','g','舵机 GND'],
-      ['P3','w','V1P:C','3C','5','舵机 VDD = 外部 5V']]},
+      ['P3','w','V1P:C','3C','5','舵机 VDD = 外部 5V'],
+      ['C5','c','2E','3E','part','舵机 VDD 和 GND 之间的瓷片电容。ROBOTIS 推荐电路在这里并联一个电解电容和一个 0.1µF，电解电容就是 V1 上的 C4','0.1µF']]},
     {t:'74LVC2G241 和中转列',items:[
       ['K2','k','插入 74LVC2G241 转接板','','','第 6–9 列，一排针插 G 行、一排插 F 行，1 脚（圆点）在 6F'],
       ['P4','w','V1P:K','6K','5','8 脚 VCC = 5V'],
