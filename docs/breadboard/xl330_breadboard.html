@@ -337,7 +337,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <li><b>SN74LVC2G241 + 8 脚转接板</b><span>×1</span></li>
         <li><b>电阻 10kΩ</b><span>×1</span></li>
         <li><b>电阻 100kΩ</b><span>×2</span></li>
-        <li><b>瓷片电容 0.1µF</b><span>×3</span></li>
+        <li><b>瓷片电容 0.1µF</b><span>×4</span></li>
         <li><b>电解电容 100µF / 16V（脚距 2.5mm 以内）</b><span>×1</span></li>
         <li><b>3 针排针</b><span>×1</span></li>
         <li><b>XL330 转杜邦线（一端 JST EH 3P）</b><span>×1</span></li>
@@ -430,6 +430,8 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       ['P8','w','14J','20J','5','8 脚 OE 接 5V，芯片一直工作'],
       ['M1','w','MCU:3V3','14B','33','1 脚 VCCA = 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
       ['C1','c','11C','14C','part','VCCA 去耦电容（3.3V ↔ GND）','0.1µF'],
+      ['P14','w','11E','13H','g','把 GND 引到第 13 列槽上方，给 C6 用','',{ctrl:[446,476]}],
+      ['C6','c','13L','14L','part','VCCB 去耦电容（5V ↔ GND），紧挨着 14 脚','0.1µF'],
       ['P10','w','20C','V3N:C','g','7 脚 GND 接 V3 −'],
       ['P11','w','9A','20A','g','241 的 GND 和 TXB0104 的 GND 连通'],
       ['P12','w','18B','20B','g','5 脚 A4 不用，接 GND，不要悬空']]},
