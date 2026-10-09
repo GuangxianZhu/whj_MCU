@@ -156,10 +156,10 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     <h2 id="w-h" style="font-size:16px">动手前先看这五条</h2>
     <ol>
       <li>面包板按照片的方向放：V1、V2 电源轨在左边，最右边是 1–30 的小条。只用下半块，也就是 V1 和 V3 中间那一块（28 列，槽两边各 6 个孔）。上半块、V2、V4 和小条都不用。</li>
-      <li><b>V1 = 外部 5V 和 GND，V3 − = MCU 的 GND（V3 + 不用）。</b>每条电源轨里，靠里（红线）那列是 +，靠外（黑线）那列是 −。先贴胶带标注。MCU 的 3.3V 直接插到第 14 列。</li>
+      <li><b>V1 = 外部 5V 和 GND，V3 − = MCU 的 GND（V3 + 不用）。</b>每条电源轨里，靠里（红线）那列是 +，靠外（黑线）那列是 −。先贴胶带标注。MCU 的 3.3V 直接插到第 18 列。</li>
       <li>MCU 板的 5V 引脚空着不接。同一条电源线上只能有一个电源。</li>
       <li>所有 GND 都要连在一起：外部电源的地和 MCU 的地靠 P1 那根长线接通。</li>
-      <li>241 转接板的 1 脚（圆点）朝左下：在槽下方（A–F 一侧）、靠 V1 那头，两排针插 G 行和 F 行。TXB0104 是 Adafruit 1875 模块（每排 6 针）：LV A1 A2 A3 A4 OE 那排插 E 行，HV B1 B2 B3 B4 GND 那排插 G 行，LV、HV 在第 14 列（靠 V1 那头）。E 和 F 同属槽下方那一组，电气上一样。</li>
+      <li>241 转接板的 1 脚（圆点）朝左下：在槽下方（A–F 一侧）、靠 V1 那头，两排针插 G 行和 F 行。TXB0104 是 Adafruit 1875 模块（每排 6 针），调头插在第 13–18 列：E 行从左到右是 OE A4 A3 A2 A1 LV，G 行是 GND B4 B3 B2 B1 HV，LV、HV 在第 18 列（靠 V3 那头）。E 和 F 同属槽下方那一组，电气上一样。</li>
     </ol>
   </section>
 
@@ -263,7 +263,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     <p class="lede">按你照片里这块板画的，方向也和照片一样。这块板的电源轨在列的两头（左边 V1/V2，右边 V3/V4），不是沿着列走，所以用第 11 列做了一个 5V 和 GND 的中转点，两颗芯片的电源从这里接，线更短。点下面清单里的任意一条，图上会只突出那一根线。</p>
     <div class="frame"><svg id="bb" class="bb" viewBox="104 14 860 712" role="img" aria-labelledby="bb-t"><title id="bb-t">你的面包板上的元件位置与接线</title><g id="bb-g"></g></svg></div>
     <div class="legend">
-      <span><i class="sw c-5"></i>5V（V1 +，外部电源）</span><span><i class="sw c-33"></i>3.3V（MCU 直接接第 14 列）</span><span><i class="sw c-g"></i>GND（V1 −、V3 −）</span><span><i class="sw c-part"></i>电阻 / 电容</span>
+      <span><i class="sw c-5"></i>5V（V1 +，外部电源）</span><span><i class="sw c-33"></i>3.3V（MCU 直接接第 18 列）</span><span><i class="sw c-g"></i>GND（V1 −、V3 −）</span><span><i class="sw c-part"></i>电阻 / 电容</span>
     </div>
   </section>
 
@@ -284,13 +284,13 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <tr><td>9</td><td>5 2A · TX</td><td>4 GND</td></tr>
         <tr class="grp"><td colspan="3">中转（第 11 列）</td></tr>
         <tr><td>11</td><td>5V</td><td>GND</td></tr>
-        <tr class="grp"><td colspan="3">TXB0104 模块（第 14–19 列，针插 G 行和 E 行）</td></tr>
-        <tr><td>14</td><td>HV · 5V</td><td>LV · 3.3V（MCU 直接接）</td></tr>
-        <tr><td>15</td><td>B1 · DIR（接 241）</td><td>A1 · DIR（接 MCU）</td></tr>
+        <tr class="grp"><td colspan="3">TXB0104 模块（第 13–18 列，调头插，针插 G 行和 E 行）</td></tr>
+        <tr><td>13</td><td>GND</td><td>OE · 不接（模块上已有 10k 上拉）</td></tr>
+        <tr><td>14</td><td>B4 · 接 GND</td><td>A4 · 不接</td></tr>
+        <tr><td>15</td><td>B3 · TX（接 241）</td><td>A3 · TX（接 MCU）</td></tr>
         <tr><td>16</td><td>B2 · RX（接 241）</td><td>A2 · RX（接 MCU）</td></tr>
-        <tr><td>17</td><td>B3 · TX（接 241）</td><td>A3 · TX（接 MCU）</td></tr>
-        <tr><td>18</td><td>B4 · 接 GND</td><td>A4 · 不接</td></tr>
-        <tr><td>19</td><td>GND</td><td>OE · 不接（模块上已有 10k 上拉到 LV）</td></tr>
+        <tr><td>17</td><td>B1 · DIR（接 241）</td><td>A1 · DIR（接 MCU）</td></tr>
+        <tr><td>18</td><td>HV · 5V</td><td>LV · 3.3V（MCU 直接接）</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -321,7 +321,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <h2>上电前检查</h2>
       <ol class="steps">
         <li>接完第 1 组、插芯片之前：万用表打到蜂鸣档，测 V1 + 对 V1 −，不能响。再测 V1 + 最上面和最下面两个孔，应该响，说明整条是通的；V1 −、V3 − 也一样测。</li>
-        <li>外部电源通电，测 V1 + 对 V1 − 约 5V；插上 MCU 的 USB，测第 14 列槽下方对 V3 − 约 3.3V。确认后都断电。</li>
+        <li>外部电源通电，测 V1 + 对 V1 − 约 5V；插上 MCU 的 USB，测第 18 列槽下方对 V3 − 约 3.3V。确认后都断电。</li>
         <li>接完芯片供电后再上电：TXB0104 模块的 LV 约 3.3V、HV 约 5V，74LVC2G241 第 8 脚约 5V。</li>
         <li>舵机线先别插，测第 3 列对第 2 列约 5V（舵机 VDD 对 GND）。</li>
         <li>上电顺序：先插 MCU 的 USB，再开外部 5V；断电顺序相反。顺序反了也不会损坏芯片，TXB0104 有一侧没电时输出会变成高阻。</li>
@@ -358,7 +358,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     <div class="tbl"><table>
       <thead><tr><th>现象</th><th>先查什么</th></tr></thead>
       <tbody>
-        <tr><td style="font-family:var(--sans)">ping 一直没有应答</td><td>舵机上电时 LED 有没有闪；波特率是不是 57600；MCU 的 DIR、RX、TX 是否分别接第 15、16、17 列（槽下方）；上电后（DIR = 0）第 4 列 DATA 对 GND 是否约 5V；DIR = 1 时 241 第 7 脚是否约 5V。</td></tr>
+        <tr><td style="font-family:var(--sans)">ping 一直没有应答</td><td>舵机上电时 LED 有没有闪；波特率是不是 57600；MCU 的 DIR、RX、TX 是否分别接第 17、16、15 列（槽下方）；上电后（DIR = 0）第 4 列 DATA 对 GND 是否约 5V；DIR = 1 时 241 第 7 脚是否约 5V。</td></tr>
         <tr><td style="font-family:var(--sans)">偶尔有应答，经常 CRC 错误</td><td>DIR 切得太早：换成等“发送完成”标志。也检查 GND 是否都连在一起，尤其是 P1 那根长线。</td></tr>
         <tr><td style="font-family:var(--sans)">RX 收到的是自己刚发出去的字节</td><td>1OE 和 2OE 接反了，两个缓冲器同时打开。核对 S4、S7 两根线。</td></tr>
         <tr><td style="font-family:var(--sans)">舵机一转通信就中断</td><td>外部电源电流不够，或者 100µF 电容没接好。241 和舵机用的是同一路 5V，电压一掉就会出错。</td></tr>
@@ -397,7 +397,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
   const UROW={L:60,K:78,J:96,I:114,H:132,G:150,F:204,E:222,D:240,C:258,B:276,A:294};
   const RAILX={V1N:158,V1P:176,V3P:766,V3N:784};
   const RAILNAME={V1N:'V1 −',V1P:'V1 +',V3P:'V3 +',V3N:'V3 −'};
-  const MCU={'3V3':[464,652],DIR:[482,652],RX:[500,652],TX:[518,652],GND:[784,652]};
+  const MCU={TX:[482,652],RX:[500,652],DIR:[518,652],'3V3':[536,652],GND:[784,652]};
   const EXT={'+':[176,652],'-':[158,652]};
   const COL={'5':'var(--w5)','33':'var(--w33)','g':'var(--wg)','rx':'var(--wrx)','tx':'var(--wtx)','dir':'var(--wdir)','data':'var(--wdata)','part':'var(--part)'};
   const CN={'5':'红','33':'橙','g':'黑','rx':'绿','tx':'黄','dir':'蓝','data':'紫'};
@@ -423,26 +423,25 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       ['P6','w','9D','11D','g','把 241 的 GND（4 脚）引到第 11 列槽下方（中转）'],
       ['C2','c','11G','11F','part','跨过槽，接在 5V 和 GND 中转之间的去耦电容','0.1µF'],
       ['R3','r','6B','9B','part','DIR 下拉（1OE ↔ GND）','100kΩ']]},
-    {t:'TXB0104 供电',items:[
-      ['K1','k','插入 TXB0104 模块','','','第 14–19 列：LV A1 A2 A3 A4 OE 那排插 E 行，HV B1 B2 B3 B4 GND 那排插 G 行，LV 在 14E、HV 在 14G。OE 不用接，模块上已有 10k 上拉'],
-      ['P7','w','11I','14I','5','HV（VB）= 5V'],
-      ['M1','w','MCU:3V3','14A','33','LV（VA）= 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
-      ['P14','w','11E','13H','g','把 GND 从中转点引到第 13 列槽上方，再由 P11 接到模块的 GND','',{ctrl:[446,476]}],
-      ['P10','w','19K','V3N:K','g','模块 GND 接 V3 −（MCU 的地）'],
-      ['P11','w','13J','19J','g','GND 中转连到模块的 GND'],
-      ['P12','w','18I','19I','g','B4 不用，接 GND；A4 空着']]},
+    {t:'TXB0104 模块',items:[
+      ['K1','k','插入 TXB0104 模块（调头插）','','','第 13–18 列。从左到右：E 行是 OE A4 A3 A2 A1 LV，G 行是 GND B4 B3 B2 B1 HV；LV、HV 在第 18 列（靠 V3 那头）。OE 不用接，模块上已有 10k 上拉'],
+      ['P7','w','11I','18I','5','HV（VB）= 5V，从中转点引过来'],
+      ['P8','w','11E','13L','g','模块 GND 接到 GND 中转点（跨过槽）','',{ctrl:[428,430]}],
+      ['P9','w','13K','V3N:K','g','模块 GND 接 V3 −（MCU 的地）'],
+      ['P10','w','14J','13J','g','B4 不用，接旁边的 GND；A4 空着']]},
     {t:'MCU ↔ TXB0104（3.3V 一侧，槽下方）',items:[
-      ['S1','w','MCU:DIR','15B','dir','2 脚 A1，方向控制 DIR','',{b:0}],
-      ['S2','w','16B','MCU:RX','rx','3 脚 A2，接收','',{b:0}],
-      ['S3','w','MCU:TX','17B','tx','4 脚 A3，发送','',{b:0}]]},
-    {t:'TXB0104 ↔ 74LVC2G241（5V 一侧，槽上方）',items:[
-      ['S4','w','15L','7L','dir','B1（13 脚）→ 2OE（7 脚）','',{ctrl:[(cx(15)+cx(7))/2,300]}],
-      ['S5','w','8L','16L','rx','241 的 1Y（6 脚）→ B2（12 脚），接收','',{ctrl:[(cx(8)+cx(16))/2,288]}],
-      ['S6','w','17L','9L','tx','B3（11 脚）→ 241 的 2A（5 脚），发送','',{ctrl:[(cx(17)+cx(9))/2,276]}],
+      ['M1','w','MCU:3V3','18B','33','LV（VA）= 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
+      ['S1','w','MCU:DIR','17B','dir','A1，方向控制 DIR','',{b:0}],
+      ['S2','w','16B','MCU:RX','rx','A2，接收','',{b:0}],
+      ['S3','w','MCU:TX','15B','tx','A3，发送','',{b:0}]]},
+    {t:'TXB0104 ↔ 74LVC2G241（5V 一侧，槽上方）',d:'三根线一根套一根，互不交叉：最短的 S6 先接，最长的 S4 最后接。',items:[
+      ['S6','w','15L','9L','tx','B3 → 241 的 2A（5 脚），发送','',{ctrl:[(cx(15)+cx(9))/2,312]}],
+      ['S5','w','8L','16L','rx','241 的 1Y（6 脚）→ B2，接收','',{ctrl:[(cx(8)+cx(16))/2,296]}],
+      ['S4','w','17L','7L','dir','B1 → 2OE（7 脚）','',{ctrl:[(cx(17)+cx(7))/2,280]}],
       ['S7','w','7K','6D','dir','2OE（7 脚）→ 1OE（1 脚）。2OE 高电平有效、1OE 低电平有效，所以 DIR = 1 发送，DIR = 0 接收','',{ctrl:[262,GROOVE]}],
-      ['R2','r','14K','16K','part','RX 上拉到 5V（HV ↔ B2）','100kΩ']]},
+      ['R2','r','6I','8I','part','RX 上拉到 5V（241 的 VCC ↔ 1Y），间距小可以竖着插','100kΩ']]},
     {t:'DATA 线',items:[
-      ['P13','w','V1P:J','4J','5','把 5V 引到第 4 列槽上方，给 R1 用'],
+      ['P11','w','V1P:J','4J','5','把 5V 引到第 4 列槽上方，给 R1 用'],
       ['R1','r','4G','4F','part','跨过槽，DATA 上拉到 5V','10kΩ'],
       ['S8','w','8C','4C','data','2Y（3 脚）→ DATA'],
       ['S9','w','7A','4A','data','1A（2 脚）← DATA']]}
@@ -505,17 +504,17 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     h+='<line class="prt-red" x1="750" y1="342" x2="750" y2="588"/><line class="prt-blk" x1="800" y1="342" x2="800" y2="588"/>';
     h+='<text class="rlab" x="167" y="469" text-anchor="middle">V1</text><text class="rlab" x="775" y="469" text-anchor="middle">V3</text>';
     // chips
-    function chip(c1,n,name,low){
+    function chip(c1,n,name,low,nodot){
       const c2=c1+n-1, x1=cx(c1)-10, x2=cx(c2)+10;
       let s='<rect class="adapter" x="'+x1+'" y="428" width="'+(x2-x1)+'" height="'+(low+10-428)+'" rx="3"/>';
       s+='<rect class="chipbody" x="'+(x1+6)+'" y="457" width="'+(x2-x1-12)+'" height="16" rx="2"/>';
       s+='<text class="chiptxt" x="'+((x1+x2)/2+4)+'" y="468.5" text-anchor="middle">'+name+'</text>';
       for(let c=c1;c<=c2;c++){s+='<circle class="pin" cx="'+cx(c)+'" cy="438" r="3"/><circle class="pin" cx="'+cx(c)+'" cy="'+low+'" r="3"/>';}
-      s+='<circle class="p1" cx="'+cx(c1)+'" cy="465" r="2.2"/>';
+      if(!nodot) s+='<circle class="p1" cx="'+cx(c1)+'" cy="465" r="2.2"/>';
       return s;
     }
     h+=chip(6,4,'241',LROW.F);
-    h+=chip(14,6,'TXB0104',LROW.E);
+    h+=chip(13,6,'TXB0104',LROW.E,true);
     h+='<rect class="chipbody" x="'+(cx(2)-8)+'" y="557" width="'+(2*P+16)+'" height="14" rx="2"/>';
     for(let c=2;c<=4;c++) h+='<circle class="pin" cx="'+cx(c)+'" cy="564" r="3"/>';
     h+='<text x="'+cx(3)+'" y="599" text-anchor="middle">舵机</text>';
@@ -524,7 +523,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     h+='<text class="pinlab" x="176" y="667" text-anchor="middle">+</text><text class="pinlab" x="158" y="667" text-anchor="middle">−</text>';
     h+='<text class="boxlab" x="172" y="694" text-anchor="middle">外部 5V 电源</text>';
     h+='<rect class="mcu" x="444" y="652" width="366" height="60" rx="6"/>';
-    [['3.3V',464,680],['DIR',482,667],['RX',500,680],['TX',518,667],['GND',784,667]].forEach(p=>{h+='<text class="pinlab" x="'+p[1]+'" y="'+p[2]+'" text-anchor="middle" style="font-size:9.5px">'+p[0]+'</text>';});
+    [['TX',482,667],['RX',500,680],['DIR',518,667],['3.3V',536,680],['GND',784,667]].forEach(p=>{h+='<text class="pinlab" x="'+p[1]+'" y="'+p[2]+'" text-anchor="middle" style="font-size:9.5px">'+p[0]+'</text>';});
     h+='<text class="boxlab" x="640" y="698" text-anchor="middle">KM1M7C（IO 3.3V）</text>';
     // wires and parts
     eachItem(it=>{
