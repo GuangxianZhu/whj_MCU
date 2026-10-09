@@ -332,11 +332,11 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <h2>物料清单</h2>
       <ul class="bom">
         <li><b>面包板（照片这款）</b><span>×1</span></li>
-        <li><b>TXB0104 模块（每排 6 针）</b><span>×1</span></li>
+        <li><b>TXB0104 模块（每排 6 针，VA/VB 电容已在模块上）</b><span>×1</span></li>
         <li><b>SN74LVC2G241 + 8 脚转接板</b><span>×1</span></li>
         <li><b>电阻 10kΩ</b><span>×1</span></li>
         <li><b>电阻 100kΩ</b><span>×2</span></li>
-        <li><b>瓷片电容 0.1µF</b><span>×4</span></li>
+        <li><b>瓷片电容 0.1µF</b><span>×2</span></li>
         <li><b>电解电容 100µF / 16V（脚距 2.5mm 以内）</b><span>×1</span></li>
         <li><b>3 针排针</b><span>×1</span></li>
         <li><b>XL330 转杜邦线（一端 JST EH 3P）</b><span>×1</span></li>
@@ -428,9 +428,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       ['P7','w','11I','14I','5','VB = 5V'],
       ['P8','w','14C','19C','33','OE 接 VA（3.3V），芯片一直工作'],
       ['M1','w','MCU:3V3','14A','33','VA = 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
-      ['C1','c','11B','14B','part','VA 去耦电容（3.3V ↔ GND）','0.1µF'],
-      ['P14','w','11E','13H','g','把 GND 引到第 13 列槽上方，给 C6 用','',{ctrl:[446,476]}],
-      ['C6','c','13L','14L','part','VB 去耦电容（5V ↔ GND），紧挨着 VB','0.1µF'],
+      ['P14','w','11E','13H','g','把 GND 从中转点引到第 13 列槽上方，再由 P11 接到模块的 GND','',{ctrl:[446,476]}],
       ['P10','w','19K','V3N:K','g','模块 GND 接 V3 −（MCU 的地）'],
       ['P11','w','13J','19J','g','GND 中转连到模块的 GND'],
       ['P12','w','18I','19I','g','B4 不用，接 GND；A4 空着']]},
