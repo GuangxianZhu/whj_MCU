@@ -258,6 +258,70 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
     </div>
   </section>
 
+  <section aria-labelledby="mod-h">
+    <h2 id="mod-h">TXB0104 模块内部</h2>
+    <p class="lede">这是 Adafruit 1875 模块板上的电路（照官方电路图画的）。虚线框里的元件板上已经焊好：C1、C2 是 LV、HV 的去耦电容，R1 把 OE 上拉到 LV，所以芯片一通电就工作。两侧圆点是排针，下面的小字是它在面包板上插的孔，框外写的是面包板上要接到哪里（括号里是接线清单编号）。</p>
+    <div class="frame">
+<svg class="sch" viewBox="0 0 1060 410" role="img" aria-labelledby="mod-t mod-d"><title id="mod-t">TXB0104 模块内部电路和面包板接法</title><desc id="mod-d">Adafruit 1875 模块：TXB0104 芯片、C1 和 C2 两个 0.1µF 去耦电容、R1 10k 把 OE 上拉到 LV。左排 LV A1 A2 A3 A4 OE 插 14E 到 19E，右排 HV B1 B2 B3 B4 GND 插 14G 到 19G，框外标出每个引脚在面包板上接到哪里。</desc>
+<rect x="305" y="30" width="460" height="370" rx="10" style="fill:none;stroke:var(--muted);stroke-width:1.5;stroke-dasharray:6 5"/>
+<text x="315" y="48" style="font-family:var(--sans);font-size:12px;fill:var(--muted)">Adafruit 1875 模块（虚线框内是板上已有的元件）</text>
+<rect class="bx" x="430" y="80" width="200" height="255" rx="6"/><text class="ttl" x="530" y="205" text-anchor="middle">TXB0104</text><text x="530" y="225" text-anchor="middle">每个通道自动判断方向</text>
+<line class="ln s-33" x1="295" y1="110" x2="320" y2="110"/><line class="ln s-33" x1="320" y1="110" x2="430" y2="110"/>
+<circle cx="320" cy="110" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="103" style="font-weight:600;fill:var(--ink)">LV</text><text x="320" y="129" text-anchor="middle">14E</text>
+<text x="438" y="114">VCCA</text><text x="288" y="114" text-anchor="end" class="t-33">MCU 3.3V（M1）</text>
+<line class="ln s-dir" x1="295" y1="150" x2="320" y2="150"/><line class="ln s-dir" x1="320" y1="150" x2="430" y2="150"/>
+<circle cx="320" cy="150" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="143" style="font-weight:600;fill:var(--ink)">A1</text><text x="320" y="169" text-anchor="middle">15E</text>
+<text x="438" y="154">A1</text><text x="288" y="154" text-anchor="end" class="t-dir">MCU DIR（S1）</text>
+<line class="ln s-rx" x1="295" y1="190" x2="320" y2="190"/><line class="ln s-rx" x1="320" y1="190" x2="430" y2="190"/>
+<circle cx="320" cy="190" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="183" style="font-weight:600;fill:var(--ink)">A2</text><text x="320" y="209" text-anchor="middle">16E</text>
+<text x="438" y="194">A2</text><text x="288" y="194" text-anchor="end" class="t-rx">MCU RX（S2）</text>
+<line class="ln s-tx" x1="295" y1="230" x2="320" y2="230"/><line class="ln s-tx" x1="320" y1="230" x2="430" y2="230"/>
+<circle cx="320" cy="230" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="223" style="font-weight:600;fill:var(--ink)">A3</text><text x="320" y="249" text-anchor="middle">17E</text>
+<text x="438" y="234">A3</text><text x="288" y="234" text-anchor="end" class="t-tx">MCU TX（S3）</text>
+<line class="ln s-mut" x1="320" y1="270" x2="430" y2="270"/>
+<circle cx="320" cy="270" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="263" style="font-weight:600;fill:var(--ink)">A4</text><text x="320" y="289" text-anchor="middle">18E</text>
+<text x="438" y="274">A4</text><text x="296" y="274" text-anchor="end" style="fill:var(--muted)">不接</text>
+<line class="ln s-mut" x1="320" y1="310" x2="430" y2="310"/>
+<circle cx="320" cy="310" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="330" y="303" style="font-weight:600;fill:var(--ink)">OE</text><text x="320" y="329" text-anchor="middle">19E</text>
+<text x="438" y="314">OE</text><text x="296" y="314" text-anchor="end" style="fill:var(--muted)">不接</text>
+<line class="ln s-5" x1="630" y1="110" x2="750" y2="110"/><line class="ln s-5" x1="750" y1="110" x2="775" y2="110"/>
+<circle cx="750" cy="110" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="103" text-anchor="end" style="font-weight:600;fill:var(--ink)">HV</text><text x="750" y="129" text-anchor="middle">14G</text>
+<text x="622" y="114" text-anchor="end">VCCB</text><text x="782" y="114" class="t-5">外部 5V（P7）</text>
+<line class="ln s-dir" x1="630" y1="150" x2="750" y2="150"/><line class="ln s-dir" x1="750" y1="150" x2="775" y2="150"/>
+<circle cx="750" cy="150" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="143" text-anchor="end" style="font-weight:600;fill:var(--ink)">B1</text><text x="750" y="169" text-anchor="middle">15G</text>
+<text x="622" y="154" text-anchor="end">B1</text><text x="782" y="154" class="t-dir">241 2OE / 1OE（S4）</text>
+<line class="ln s-rx" x1="630" y1="190" x2="750" y2="190"/><line class="ln s-rx" x1="750" y1="190" x2="775" y2="190"/>
+<circle cx="750" cy="190" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="183" text-anchor="end" style="font-weight:600;fill:var(--ink)">B2</text><text x="750" y="209" text-anchor="middle">16G</text>
+<text x="622" y="194" text-anchor="end">B2</text><text x="782" y="194" class="t-rx">241 1Y（S5），R2 上拉</text>
+<line class="ln s-tx" x1="630" y1="230" x2="750" y2="230"/><line class="ln s-tx" x1="750" y1="230" x2="775" y2="230"/>
+<circle cx="750" cy="230" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="223" text-anchor="end" style="font-weight:600;fill:var(--ink)">B3</text><text x="750" y="249" text-anchor="middle">17G</text>
+<text x="622" y="234" text-anchor="end">B3</text><text x="782" y="234" class="t-tx">241 2A（S6）</text>
+<line class="ln s-g" x1="630" y1="270" x2="750" y2="270"/><line class="ln s-g" x1="750" y1="270" x2="775" y2="270"/>
+<circle cx="750" cy="270" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="263" text-anchor="end" style="font-weight:600;fill:var(--ink)">B4</text><text x="750" y="289" text-anchor="middle">18G</text>
+<text x="622" y="274" text-anchor="end">B4</text><text x="782" y="274" class="t-g">GND（P10）</text>
+<line class="ln s-g" x1="630" y1="310" x2="750" y2="310"/><line class="ln s-g" x1="750" y1="310" x2="775" y2="310"/>
+<circle cx="750" cy="310" r="5" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5"/>
+<text x="740" y="303" text-anchor="end" style="font-weight:600;fill:var(--ink)">GND</text><text x="750" y="329" text-anchor="middle">19G</text>
+<text x="622" y="314" text-anchor="end">GND</text><text x="782" y="314" class="t-g">V3 −（P9）</text>
+<circle class="d-dir" cx="370" cy="110" r="3.5" style="fill:var(--ink)"/><line class="ln" style="stroke:var(--ink)" x1="370" y1="110" x2="370" y2="88"/><line class="ln" style="stroke:var(--ink)" x1="359" y1="88" x2="381" y2="88"/><line class="ln" style="stroke:var(--ink)" x1="359" y1="81" x2="381" y2="81"/><line class="ln s-g" x1="370" y1="81" x2="370" y2="70"/><text class="t-g" x="370" y="66" text-anchor="middle">GND</text><text x="384" y="84">C1</text><text x="384" y="98">0.1µF</text>
+<circle class="d-dir" cx="690" cy="110" r="3.5" style="fill:var(--ink)"/><line class="ln" style="stroke:var(--ink)" x1="690" y1="110" x2="690" y2="88"/><line class="ln" style="stroke:var(--ink)" x1="679" y1="88" x2="701" y2="88"/><line class="ln" style="stroke:var(--ink)" x1="679" y1="81" x2="701" y2="81"/><line class="ln s-g" x1="690" y1="81" x2="690" y2="70"/><text class="t-g" x="690" y="66" text-anchor="middle">GND</text><text x="706" y="89">C2 0.1µF</text>
+<circle cx="395" cy="310" r="3.5" style="fill:var(--ink)"/><line class="ln s-mut" x1="395" y1="310" x2="395" y2="328"/><rect class="res" x="389" y="328" width="12" height="30" rx="2"/><line class="ln s-33" x1="395" y1="358" x2="395" y2="372"/><text class="t-33" x="395" y="387" text-anchor="middle">LV</text><text x="409" y="348">R1 10k</text>
+</svg>
+    </div>
+    <p class="cap">把整块模块当成一个 12 脚的器件：芯片的电源、去耦电容和 OE 板上都处理好了，面包板上只接框外这些线——左排 4 根（3.3V 和三根 MCU 信号），右排 6 根（5V、三根到 241 的信号、B4 和 GND 接地）。A4、OE 两个针插着，但什么都不接；B4 是没用到的第 4 通道，接 GND 让它不悬空。</p>
+  </section>
+
   <section aria-labelledby="bb-h">
     <h2 id="bb-h">面包板布局</h2>
     <p class="lede">按你照片里这块板画的，方向也和照片一样。这块板的电源轨在列的两头（左边 V1/V2，右边 V3/V4），不是沿着列走，所以用第 11 列做了一个 5V 和 GND 的中转点，两颗芯片的电源从这里接，线更短。点下面清单里的任意一条，图上会只突出那一根线。</p>
