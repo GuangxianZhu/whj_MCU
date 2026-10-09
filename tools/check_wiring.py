@@ -31,15 +31,15 @@ PAGE = Path(__file__).resolve().parent.parent / "docs" / "breadboard" / "xl330_b
 # ---------------------------------------------------------------------------
 # 面包板上的固定摆放（和清单里的 K1、K2、K3 对应）
 # ---------------------------------------------------------------------------
-TXB_COL, TXB_UPPER_ROW, TXB_LOWER_ROW = 14, "G", "E"   # 第 14–20 列，针插 G 行和 E 行
+TXB_COL, TXB_UPPER_ROW, TXB_LOWER_ROW = 14, "G", "E"   # 模块，第 14–19 列，针插 G 行和 E 行
 G241_COL, G241_UPPER_ROW, G241_LOWER_ROW = 6, "G", "F"  # 第 6–9 列，针插 G 行和 F 行
 HEADER = {"2B": "XL330.1", "3B": "XL330.2", "4B": "XL330.3"}  # 舵机 1 号 GND，2 号 VDD，3 号 DATA
 
 # 转接板边缘可能盖住的孔：芯片所在列里，紧挨着针脚那一行（槽外侧）
 def keepout_holes():
     k = set()
-    for c in range(TXB_COL, TXB_COL + 7):
-        k |= {f"{c}H", f"{c}D", f"{c}F"}       # F 在两排针中间，被转接板盖住
+    for c in range(TXB_COL, TXB_COL + 6):
+        k |= {f"{c}H", f"{c}D", f"{c}F"}       # F 在两排针中间，被模块盖住
     for c in range(G241_COL, G241_COL + 4):
         k |= {f"{c}H", f"{c}E"}
     return k
@@ -49,18 +49,18 @@ def keepout_holes():
 # 引脚写法：芯片.脚号，MCU.名字，EXT.+/-，XL330.脚号
 # ---------------------------------------------------------------------------
 REFERENCE = {
-    "5V":      {"EXT.+", "TXB.14", "TXB.8", "241.8", "XL330.2"},
-    "3V3":     {"MCU.3V3", "TXB.1"},
-    "GND":     {"EXT.-", "MCU.GND", "TXB.7", "TXB.5", "241.4", "XL330.1"},
-    "DIR_3V3": {"MCU.DIR", "TXB.2"},
-    "RX_3V3":  {"MCU.RX", "TXB.3"},
-    "TX_3V3":  {"MCU.TX", "TXB.4"},
-    "DIR_5V":  {"TXB.13", "241.7", "241.1"},
-    "RX_5V":   {"TXB.12", "241.6"},
-    "TX_5V":   {"TXB.11", "241.5"},
+    "5V":      {"EXT.+", "TXB.VB", "241.8", "XL330.2"},
+    "3V3":     {"MCU.3V3", "TXB.VA", "TXB.OE"},
+    "GND":     {"EXT.-", "MCU.GND", "TXB.GND", "TXB.B4", "241.4", "XL330.1"},
+    "DIR_3V3": {"MCU.DIR", "TXB.A1"},
+    "RX_3V3":  {"MCU.RX", "TXB.A2"},
+    "TX_3V3":  {"MCU.TX", "TXB.A3"},
+    "DIR_5V":  {"TXB.B1", "241.7", "241.1"},
+    "RX_5V":   {"TXB.B2", "241.6"},
+    "TX_5V":   {"TXB.B3", "241.5"},
     "DATA":    {"241.2", "241.3", "XL330.3"},
 }
-UNUSED = {"TXB.10", "TXB.9", "TXB.6"}          # B4、两个 NC：不能接任何东西
+UNUSED = {"TXB.A4"}                            # 不用的 A4：不能接任何东西
 PARTS = {                                       # 两只脚跨在哪两个网络上
     "R1": ("DATA", "5V"),
     "R2": ("RX_5V", "5V"),
@@ -137,9 +137,11 @@ def node_of(pos, errors):
 def chip_pins():
     """芯片和排针的每只脚插在哪个孔。"""
     pins = {}
-    for i in range(7):                       # TXB0104：1–7 在下排从左到右，8–14 在上排从右到左
-        pins[f"TXB.{1 + i}"] = f"{TXB_COL + i}{TXB_LOWER_ROW}"
-        pins[f"TXB.{14 - i}"] = f"{TXB_COL + i}{TXB_UPPER_ROW}"
+    lower = ["VA", "A1", "A2", "A3", "A4", "OE"]   # TXB0104 模块：两排从左到右
+    upper = ["VB", "B1", "B2", "B3", "B4", "GND"]
+    for i in range(6):
+        pins[f"TXB.{lower[i]}"] = f"{TXB_COL + i}{TXB_LOWER_ROW}"
+        pins[f"TXB.{upper[i]}"] = f"{TXB_COL + i}{TXB_UPPER_ROW}"
     for i in range(4):                       # 74LVC2G241：1–4 下排，5–8 上排
         pins[f"241.{1 + i}"] = f"{G241_COL + i}{G241_LOWER_ROW}"
         pins[f"241.{8 - i}"] = f"{G241_COL + i}{G241_UPPER_ROW}"
@@ -173,7 +175,7 @@ def check(stages, verbose=True):
 
     # K 步骤里写的列号要和这里的摆放一致
     ktext = {it[0]: it[2] + " " + it[5] for it in items_of(stages) if it[1] == "k"}
-    expect = {"K1": f"第 {TXB_COL}–{TXB_COL + 6} 列", "K2": f"第 {G241_COL}–{G241_COL + 3} 列",
+    expect = {"K1": f"第 {TXB_COL}–{TXB_COL + 5} 列", "K2": f"第 {G241_COL}–{G241_COL + 3} 列",
               "K3": "2B、3B、4B"}
     for k, frag in expect.items():
         if frag not in ktext.get(k, ""):
@@ -281,9 +283,9 @@ def selftest():
         ("R1 插错一列（一头悬空）", lambda it: it[0] == "R1" and not it.__setitem__(2, "2G")),
         ("电解电容 C4 正负接反", lambda it: it[0] == "C4" and not (it.__setitem__(2, "V1N:B"), it.__setitem__(3, "V1P:B"))),
         ("两样东西插进同一个孔", lambda it: it[0] == "P12" and not it.__setitem__(2, "16B")),
-        ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "14L")),
-        ("A4 的接地线插到了 NC 那一列", lambda it: it[0] == "P12" and not it.__setitem__(2, "19B")),
-        ("OE 没接 5V（悬空）", lambda it: it[0] == "P8" and not it.__setitem__(3, "22J")),
+        ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "14J")),
+        ("B4 的接地线插到了 A4 那一列", lambda it: it[0] == "P12" and not it.__setitem__(2, "18B")),
+        ("OE 没接上（悬空）", lambda it: it[0] == "P8" and not it.__setitem__(3, "22C")),
     ]
     failed = 0
     for name, fn in cases:
