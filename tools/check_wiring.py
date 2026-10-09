@@ -50,7 +50,7 @@ def keepout_holes():
 # ---------------------------------------------------------------------------
 REFERENCE = {
     "5V":      {"EXT.+", "TXB.VB", "241.8", "XL330.2"},
-    "3V3":     {"MCU.3V3", "TXB.VA", "TXB.OE"},
+    "3V3":     {"MCU.3V3", "TXB.VA"},
     "GND":     {"EXT.-", "MCU.GND", "TXB.GND", "TXB.B4", "241.4", "XL330.1"},
     "DIR_3V3": {"MCU.DIR", "TXB.A1"},
     "RX_3V3":  {"MCU.RX", "TXB.A2"},
@@ -60,7 +60,7 @@ REFERENCE = {
     "TX_5V":   {"TXB.B3", "241.5"},
     "DATA":    {"241.2", "241.3", "XL330.3"},
 }
-UNUSED = {"TXB.A4"}                            # 不用的 A4：不能接任何东西
+UNUSED = {"TXB.A4", "TXB.OE"}                  # A4 不用；OE 由模块内部 10k 上拉到 LV，外面不接
 PARTS = {                                       # 两只脚跨在哪两个网络上
     "R1": ("DATA", "5V"),
     "R2": ("RX_5V", "5V"),
@@ -283,7 +283,7 @@ def selftest():
         ("两样东西插进同一个孔", lambda it: it[0] == "P12" and not it.__setitem__(2, "16B")),
         ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "14J")),
         ("B4 的接地线插到了 A4 那一列", lambda it: it[0] == "P12" and not it.__setitem__(2, "18B")),
-        ("OE 没接上（悬空）", lambda it: it[0] == "P8" and not it.__setitem__(3, "22C")),
+        ("OE 被误接到 GND", lambda it: it[0] == "P12" and not it.__setitem__(2, "19B")),
     ]
     failed = 0
     for name, fn in cases:
