@@ -159,7 +159,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <li><b>V1 = 外部 5V 和 GND，V3 − = MCU 的 GND（V3 + 不用）。</b>每条电源轨里，靠里（红线）那列是 +，靠外（黑线）那列是 −。先贴胶带标注。MCU 的 3.3V 直接插到第 14 列。</li>
       <li>MCU 板的 5V 引脚空着不接。同一条电源线上只能有一个电源。</li>
       <li>所有 GND 都要连在一起：外部电源的地和 MCU 的地靠 P1 那根长线接通。</li>
-      <li>241 转接板的 1 脚（圆点）朝左下：在槽下方（A–F 一侧）、靠 V1 那头。241 的两排针插 G 行和 F 行；TXB0104 是每排 6 针的成品模块：VA…OE 那排插 E 行，VB…GND 那排插 G 行，VA、VB 在第 14 列（靠 V1 那头）。E 和 F 同属槽下方那一组，电气上一样。</li>
+      <li>241 转接板的 1 脚（圆点）朝左下：在槽下方（A–F 一侧）、靠 V1 那头，两排针插 G 行和 F 行。TXB0104 是 Adafruit 1875 模块（每排 6 针）：LV A1 A2 A3 A4 OE 那排插 E 行，HV B1 B2 B3 B4 GND 那排插 G 行，LV、HV 在第 14 列（靠 V1 那头）。E 和 F 同属槽下方那一组，电气上一样。</li>
     </ol>
   </section>
 
@@ -188,15 +188,15 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <line class="ln s-dir" x1="280" y1="220" x2="400" y2="220"/><text class="t-dir" x="340" y="212" text-anchor="middle">DIR →</text>
         <rect class="bx" x="400" y="80" width="180" height="215" rx="6"/>
         <text class="ttl" x="490" y="104" text-anchor="middle">TXB0104</text>
-        <text x="432" y="122" text-anchor="middle">VA</text>
-        <text x="550" y="122" text-anchor="middle">VB</text>
+        <text x="432" y="122" text-anchor="middle">LV</text>
+        <text x="550" y="122" text-anchor="middle">HV</text>
         <text x="408" y="144">A2</text><text x="408" y="184">A3</text><text x="408" y="224">A1</text><text x="408" y="259">A4</text>
         <text x="572" y="144" text-anchor="end">B2</text><text x="572" y="184" text-anchor="end">B3</text><text x="572" y="224" text-anchor="end">B1</text><text x="572" y="259" text-anchor="end">B4</text>
         <text x="432" y="286" text-anchor="middle">OE</text>
         <text x="550" y="286" text-anchor="middle">GND</text>
         <line class="ln s-33" x1="430" y1="80" x2="430" y2="62"/><text class="t-33" x="430" y="55" text-anchor="middle">+3.3V</text>
         <line class="ln s-5" x1="550" y1="80" x2="550" y2="62"/><text class="t-5" x="550" y="55" text-anchor="middle">+5V</text>
-        <line class="ln s-33" x1="430" y1="295" x2="430" y2="313"/><text class="t-33" x="430" y="329" text-anchor="middle">+3.3V</text>
+        <text x="430" y="312" text-anchor="middle">板上 10k</text><text x="430" y="328" text-anchor="middle">上拉到 LV</text>
         <line class="ln s-g" x1="550" y1="295" x2="550" y2="313"/><text class="t-g" x="550" y="329" text-anchor="middle">GND</text>
         <line class="ln s-mut" x1="386" y1="255" x2="400" y2="255"/><text x="381" y="259" text-anchor="end">空</text>
         <line class="ln s-g" x1="580" y1="255" x2="600" y2="255"/><text class="t-g" x="604" y="259">GND</text>
@@ -285,12 +285,12 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
         <tr class="grp"><td colspan="3">中转（第 11 列）</td></tr>
         <tr><td>11</td><td>5V</td><td>GND</td></tr>
         <tr class="grp"><td colspan="3">TXB0104 模块（第 14–19 列，针插 G 行和 E 行）</td></tr>
-        <tr><td>14</td><td>VB · 5V</td><td>VA · 3.3V（MCU 直接接）</td></tr>
+        <tr><td>14</td><td>HV · 5V</td><td>LV · 3.3V（MCU 直接接）</td></tr>
         <tr><td>15</td><td>B1 · DIR（接 241）</td><td>A1 · DIR（接 MCU）</td></tr>
         <tr><td>16</td><td>B2 · RX（接 241）</td><td>A2 · RX（接 MCU）</td></tr>
         <tr><td>17</td><td>B3 · TX（接 241）</td><td>A3 · TX（接 MCU）</td></tr>
         <tr><td>18</td><td>B4 · 接 GND</td><td>A4 · 不接</td></tr>
-        <tr><td>19</td><td>GND</td><td>OE · 接 VA（3.3V）</td></tr>
+        <tr><td>19</td><td>GND</td><td>OE · 不接（模块上已有 10k 上拉到 LV）</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -322,7 +322,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <ol class="steps">
         <li>接完第 1 组、插芯片之前：万用表打到蜂鸣档，测 V1 + 对 V1 −，不能响。再测 V1 + 最上面和最下面两个孔，应该响，说明整条是通的；V1 −、V3 − 也一样测。</li>
         <li>外部电源通电，测 V1 + 对 V1 − 约 5V；插上 MCU 的 USB，测第 14 列槽下方对 V3 − 约 3.3V。确认后都断电。</li>
-        <li>接完芯片供电后再上电：TXB0104 模块的 VA 约 3.3V、VB 约 5V，74LVC2G241 第 8 脚约 5V。</li>
+        <li>接完芯片供电后再上电：TXB0104 模块的 LV 约 3.3V、HV 约 5V，74LVC2G241 第 8 脚约 5V。</li>
         <li>舵机线先别插，测第 3 列对第 2 列约 5V（舵机 VDD 对 GND）。</li>
         <li>上电顺序：先插 MCU 的 USB，再开外部 5V；断电顺序相反。顺序反了也不会损坏芯片，TXB0104 有一侧没电时输出会变成高阻。</li>
         <li>舵机上电时 LED 会闪一下，说明供电正常。</li>
@@ -332,7 +332,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       <h2>物料清单</h2>
       <ul class="bom">
         <li><b>面包板（照片这款）</b><span>×1</span></li>
-        <li><b>TXB0104 模块（每排 6 针，VA/VB 电容已在模块上）</b><span>×1</span></li>
+        <li><b>Adafruit TXB0104 模块（1875，自带 0.1µF 和 OE 上拉）</b><span>×1</span></li>
         <li><b>SN74LVC2G241 + 8 脚转接板</b><span>×1</span></li>
         <li><b>电阻 10kΩ</b><span>×1</span></li>
         <li><b>电阻 100kΩ</b><span>×2</span></li>
@@ -424,10 +424,9 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       ['C2','c','11G','11F','part','跨过槽，接在 5V 和 GND 中转之间的去耦电容','0.1µF'],
       ['R3','r','6B','9B','part','DIR 下拉（1OE ↔ GND）','100kΩ']]},
     {t:'TXB0104 供电',items:[
-      ['K1','k','插入 TXB0104 模块','','','第 14–19 列：VA A1 A2 A3 A4 OE 那排插 E 行，VB B1 B2 B3 B4 GND 那排插 G 行，VA 在 14E、VB 在 14G'],
-      ['P7','w','11I','14I','5','VB = 5V'],
-      ['P8','w','14C','19C','33','OE 接 VA（3.3V），芯片一直工作'],
-      ['M1','w','MCU:3V3','14A','33','VA = 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
+      ['K1','k','插入 TXB0104 模块','','','第 14–19 列：LV A1 A2 A3 A4 OE 那排插 E 行，HV B1 B2 B3 B4 GND 那排插 G 行，LV 在 14E、HV 在 14G。OE 不用接，模块上已有 10k 上拉'],
+      ['P7','w','11I','14I','5','HV（VB）= 5V'],
+      ['M1','w','MCU:3V3','14A','33','LV（VA）= 3.3V，MCU 的 3.3V 直接插到这里','',{b:0}],
       ['P14','w','11E','13H','g','把 GND 从中转点引到第 13 列槽上方，再由 P11 接到模块的 GND','',{ctrl:[446,476]}],
       ['P10','w','19K','V3N:K','g','模块 GND 接 V3 −（MCU 的地）'],
       ['P11','w','13J','19J','g','GND 中转连到模块的 GND'],
@@ -441,7 +440,7 @@ ol.steps{margin:0;padding-left:1.4em;display:grid;gap:8px;max-width:72ch}
       ['S5','w','8L','16L','rx','241 的 1Y（6 脚）→ B2（12 脚），接收','',{ctrl:[(cx(8)+cx(16))/2,288]}],
       ['S6','w','17L','9L','tx','B3（11 脚）→ 241 的 2A（5 脚），发送','',{ctrl:[(cx(17)+cx(9))/2,276]}],
       ['S7','w','7K','6D','dir','2OE（7 脚）→ 1OE（1 脚）。2OE 高电平有效、1OE 低电平有效，所以 DIR = 1 发送，DIR = 0 接收','',{ctrl:[262,GROOVE]}],
-      ['R2','r','14K','16K','part','RX 上拉到 5V（VB ↔ B2）','100kΩ']]},
+      ['R2','r','14K','16K','part','RX 上拉到 5V（HV ↔ B2）','100kΩ']]},
     {t:'DATA 线',items:[
       ['P13','w','V1P:J','4J','5','把 5V 引到第 4 列槽上方，给 R1 用'],
       ['R1','r','4G','4F','part','跨过槽，DATA 上拉到 5V','10kΩ'],
