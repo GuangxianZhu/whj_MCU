@@ -31,7 +31,7 @@ PAGE = Path(__file__).resolve().parent.parent / "docs" / "breadboard" / "xl330_b
 # ---------------------------------------------------------------------------
 # 面包板上的固定摆放（和清单里的 K1、K2、K3 对应）
 # ---------------------------------------------------------------------------
-TXB_COL, TXB_UPPER_ROW, TXB_LOWER_ROW = 13, "G", "E"   # Adafruit 1875 模块调头插，第 13–18 列，针插 G 行和 E 行
+TXB_COL, TXB_UPPER_ROW, TXB_LOWER_ROW = 14, "G", "E"   # Adafruit 1875 模块，第 14–19 列，针插 G 行和 E 行
 G241_COL, G241_UPPER_ROW, G241_LOWER_ROW = 6, "G", "F"  # 第 6–9 列，针插 G 行和 F 行
 HEADER = {"2B": "XL330.1", "3B": "XL330.2", "4B": "XL330.3"}  # 舵机 1 号 GND，2 号 VDD，3 号 DATA
 
@@ -135,8 +135,8 @@ def node_of(pos, errors):
 def chip_pins():
     """芯片和排针的每只脚插在哪个孔。"""
     pins = {}
-    lower = ["OE", "A4", "A3", "A2", "A1", "VA"]   # TXB0104 模块调头插：两排从左到右（VA = LV，VB = HV）
-    upper = ["GND", "B4", "B3", "B2", "B1", "VB"]
+    lower = ["VA", "A1", "A2", "A3", "A4", "OE"]   # TXB0104 模块：两排从左到右（VA = LV，VB = HV）
+    upper = ["VB", "B1", "B2", "B3", "B4", "GND"]
     for i in range(6):
         pins[f"TXB.{lower[i]}"] = f"{TXB_COL + i}{TXB_LOWER_ROW}"
         pins[f"TXB.{upper[i]}"] = f"{TXB_COL + i}{TXB_UPPER_ROW}"
@@ -281,9 +281,9 @@ def selftest():
         ("R1 插错一列（一头悬空）", lambda it: it[0] == "R1" and not it.__setitem__(2, "2G")),
         ("电解电容 C4 正负接反", lambda it: it[0] == "C4" and not (it.__setitem__(2, "V1N:B"), it.__setitem__(3, "V1P:B"))),
         ("两样东西插进同一个孔", lambda it: it[0] == "P10" and not it.__setitem__(2, "16B")),
-        ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "18J")),
-        ("B4 的接地线插到了 A4 那一列", lambda it: it[0] == "P10" and not it.__setitem__(2, "14B")),
-        ("OE 被误接到 GND", lambda it: it[0] == "P10" and not it.__setitem__(3, "13B")),
+        ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "14J")),
+        ("B4 的接地线插到了 A4 那一列", lambda it: it[0] == "P10" and not it.__setitem__(2, "18B")),
+        ("OE 被误接到 GND", lambda it: it[0] == "P10" and not it.__setitem__(3, "19B")),
     ]
     failed = 0
     for name, fn in cases:
