@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>XL330 通信全面检查</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a bench checklist — sticky progress strip, then one column of numbered measurement rows; each row reads like a meter readout. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#18201e; --muted:#5d6a66; --line:#d8dfdc;
+  --accent:#c98a00; --accent-soft:#fff3d1;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --bad:#b4342b; --bad-soft:#fbe7e4;
+  --lcd:#e9efe0; --lcd-ink:#28331f;
+  --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715; --surface:#1a211e; --ink:#e6ece9; --muted:#97a49f; --line:#2c3632;
+  --accent:#f0b429; --accent-soft:#3a2e10;
+  --ok:#5cc98f; --ok-soft:#163325; --bad:#ff7d72; --bad-soft:#3d1c19;
+  --lcd:#202a1d; --lcd-ink:#d6e6c2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1a211e; --ink:#e6ece9; --muted:#97a49f; --line:#2c3632;
+  --accent:#f0b429; --accent-soft:#3a2e10;
+  --ok:#5cc98f; --ok-soft:#163325; --bad:#ff7d72; --bad-soft:#3d1c19;
+  --lcd:#202a1d; --lcd-ink:#d6e6c2; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:28px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 .4rem;text-wrap:balance}
+h2{font-size:1.2rem;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:65ch;margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 24px;margin:20px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:.92rem}
+.legend b{font-family:var(--mono);color:var(--accent)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin:24px -16px 0;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.secpill{display:flex;align-items:center;gap:6px;font-size:.82rem;text-decoration:none;color:var(--ink);padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-variant-numeric:tabular-nums}
+.secpill .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.secpill.ok .dot{background:var(--ok)} .secpill.bad .dot{background:var(--bad)} .secpill.part .dot{background:var(--accent)}
+.tail{margin-left:auto;display:flex;gap:12px;align-items:center}
+.first{font-size:.88rem}
+.first a{color:var(--bad);font-weight:600}
+.first.clean{color:var(--ok)}
+.reset{font:inherit;font-size:.82rem;padding:3px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.reset.arm{border-color:var(--bad);color:var(--bad)}
+section{margin-top:36px;scroll-margin-top:72px}
+.sechead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.secnum{font-family:var(--mono);font-weight:600;color:var(--accent);font-size:1.1rem}
+.setup{margin:8px 0 12px;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0;max-width:80ch;font-size:.93rem}
+.rows{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;scroll-margin-top:72px;gap:4px 14px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.bad{background:var(--bad-soft)}
+.rid{font-family:var(--mono);font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.what{min-width:0}
+.meas{display:flex;align-items:center;gap:12px}
+.exp{width:8rem;font-family:var(--mono);font-size:.85rem;color:var(--lcd-ink);background:var(--lcd);padding:3px 8px;border-radius:4px;font-variant-numeric:tabular-nums}
+.ctl{display:flex;gap:6px;align-items:center;justify-content:flex-end;width:10rem}
+.ctl input{width:5.2rem;font-family:var(--mono);font-size:.95rem;padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.ctl .unit{font-family:var(--mono);font-size:.8rem;color:var(--muted);width:1.8rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:inherit;font-size:.85rem;padding:4px 11px;border:0;background:var(--bg);color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.verdict{font-size:.8rem;font-weight:700;width:2.4rem;text-align:center;border-radius:4px;padding:1px 0}
+.verdict.ok{color:var(--ok);background:var(--ok-soft)} .verdict.bad{color:var(--bad)}
+.cause{grid-column:2 / -1;color:var(--bad);font-size:.9rem}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+th,td{text-align:left;padding:8px 12px;border-top:1px solid var(--line);vertical-align:top}
+th{border-top:0;color:var(--muted);font-weight:500}
+.reply{font-family:var(--mono);background:var(--lcd);color:var(--lcd-ink);padding:10px 14px;border-radius:6px;overflow-x:auto;white-space:nowrap}
+@media (max-width:680px){
+  .row{grid-template-columns:2.6rem minmax(0,1fr)}
+  .meas{grid-column:2;justify-content:space-between}
+  .exp{width:auto}
+  .ctl{width:auto}
+  .bar{position:static;gap:6px}
+  .tail{margin-left:0;width:100%;justify-content:space-between}
+}
+</style>
+
+<div class="wrap">
+  <h1>XL330 通信全面检查</h1>
+  <p class="lede">接线全部完成、通信还有问题时，从头逐项测一遍。填入万用表读数或点选结果，页面会自动判断；不对的项会写出最可能的原因。按顺序测，遇到第一个不对的先修好再往下。</p>
+  <div class="legend">
+    <div><b>6下</b> 第 6 列槽下方（A–F 行）任一孔或针；<b>6上</b> 槽上方（G–L 行）</div>
+    <div><b>V1 + / V1 −</b> 外部 5V 和 GND；<b>V3 −</b> MCU 的 GND</div>
+    <div><b>模式 A</b> DIR = 0，UART 空闲</div>
+    <div><b>模式 B / C</b> DIR = 1，TX 引脚当 GPIO 输出 1 / 0</div>
+  </div>
+  <div class="bar" id="bar"></div>
+  <div id="secs"></div>
+
+  <section id="ref">
+    <div class="sechead"><span class="secnum">参考</span><h2>正常的 ping 应答</h2></div>
+    <p class="setup">一共 14 字节。<code>55</code> 表示应答包，<code>00</code> 表示没有错误，<code>B0 04</code> 是型号 1200（XL330-M288；M077 是 <code>A6 04</code>），<code>xx</code> 是固件版本，所以最后两个 CRC 字节因舵机而异。</p>
+    <div class="reply">FF FF FD 00 01 07 00 55 00 B0 04 xx CRC_L CRC_H</div>
+  </section>
+  <section id="sym">
+    <div class="sechead"><span class="secnum">参考</span><h2>按现象找方向</h2></div>
+    <div class="tbl" style="margin-top:12px"><table>
+      <tr><th>现象</th><th>先看</th></tr>
+      <tr><td>DATA 上从来没有波形，6.7 的 LED 也不亮</td><td>第 4 节（发送通路）、6.1、6.2</td></tr>
+      <tr><td>LED 能亮，但 ping 没有应答</td><td>第 5 节（接收通路）、6.2、6.4、6.5</td></tr>
+      <tr><td>收到的是自己刚发的 10 个字节</td><td>4.9：1OE 没被拉高，S7 断开</td></tr>
+      <tr><td>偶尔有应答，经常 CRC 错误</td><td>6.4（TXE 和 TC）、2.1（地没连通）、1.6、1.7（电阻阻值）</td></tr>
+      <tr><td>舵机一转就断</td><td>外部电源电流不够，C4 没接好</td></tr>
+    </table></div>
+  </section>
+</div>
+
+<script>
+const S = [{"id": "1", "t": "断电 · 目视", "setup": "拔掉 USB 和外部 5V。对照接线清单看一遍，每项确认后点“是”。", "items": [{"id": "1.1", "k": "yn", "p": "241 转接板 1 脚圆点在 6F（左下），芯片在转接板上的方向和圆点一致", "e": "是", "cause": "方向反了，VCC 和 GND 会接反，芯片可能已经损坏。断电后重插，必要时换芯片。"}, {"id": "1.2", "k": "yn", "p": "TXB 模块 LV 在 14E、HV 在 14G、OE 在 19E", "e": "是", "cause": "模块插反或错列，3.3V 和 5V 两侧对调。按模块丝印重插。"}, {"id": "1.3", "k": "yn", "p": "C4 100µF 长脚（+）在 V1 +，白色条纹一侧（−）在 V1 −", "e": "是", "cause": "电解电容接反会发热鼓包，立即断电换掉。"}, {"id": "1.4", "k": "yn", "p": "舵机线：2B = 1 号线 GND，3B = 2 号线 VDD，4B = 3 号线 DATA", "e": "是", "cause": "XL330 插头从 1 到 3 是 GND、VDD、DATA。顺序错了舵机不会响应。"}, {"id": "1.5", "k": "yn", "p": "R1（4G ↔ 4F）色环 棕 黑 橙 = 10k", "e": "是", "cause": "R1 是 DATA 上拉，应为 10k。"}, {"id": "1.6", "k": "yn", "p": "R2（14K ↔ 16K）色环 棕 黑 黄 = 100k", "e": "是", "cause": "插成 10k 时，B2 的高电平只有约 3.6V，241 和 MCU 都可能判断错。"}, {"id": "1.7", "k": "yn", "p": "R3（6B ↔ 9B）色环 棕 黑 黄 = 100k", "e": "是", "cause": "插成 10k 时，DIR = 1 也只有约 3.5V，241 的 OE 识别不了。"}, {"id": "1.8", "k": "yn", "p": "MCU 板的 5V 引脚没有接线", "e": "是", "cause": "两个 5V 电源接在一起会互相灌电流。拔掉这根线。"}, {"id": "1.9", "k": "yn", "p": "所有线都插到底，裸露的金属脚互不相碰", "e": "是", "cause": "松动或相碰会造成时通时断或短路。"}]}, {"id": "2", "t": "断电 · 通断和电阻", "setup": "万用表打到蜂鸣档（电阻项用电阻档）。拔掉 USB、外部 5V 和舵机线。表笔一端尽量点在器件的针脚上，而不是同一列的另一个孔，这样能顺便查出接触不良。", "items": [{"id": "2.1", "k": "beep", "p": "V1 − ↔ V3 −", "want": true, "e": "响", "cause": "P1 没接通：外部电源和 MCU 的地是分开的，通信一定失败。"}, {"id": "2.2", "k": "beep", "p": "V1 − ↔ 外部电源 − 端子", "want": true, "e": "响", "cause": "E2 没接通。"}, {"id": "2.3", "k": "beep", "p": "V3 − ↔ MCU 的 GND 针", "want": true, "e": "响", "cause": "M2 没接通。"}, {"id": "2.4", "k": "beep", "p": "V1 − ↔ 2下（舵机 GND）", "want": true, "e": "响", "cause": "P2 没接通。"}, {"id": "2.5", "k": "beep", "p": "V3 − ↔ 9下（241 第 4 脚 GND）", "want": true, "e": "响", "cause": "P6（9D → 11D）或 P8（11C → V3 −）没接通。"}, {"id": "2.6", "k": "beep", "p": "V3 − ↔ 19上（TXB GND 针）", "want": true, "e": "响", "cause": "P9 没接通。"}, {"id": "2.7", "k": "beep", "p": "19上 ↔ 18上（TXB B4 针）", "want": true, "e": "响", "cause": "P10 没接通，B4 悬空。"}, {"id": "2.8", "k": "beep", "p": "V1 + ↔ 3下（舵机 VDD）", "want": true, "e": "响", "cause": "P3 没接通，舵机没电。"}, {"id": "2.9", "k": "beep", "p": "V1 + ↔ 6上（241 第 8 脚 VCC）", "want": true, "e": "响", "cause": "P4 没接通，241 没电。"}, {"id": "2.10", "k": "beep", "p": "6上 ↔ 11上", "want": true, "e": "响", "cause": "P5 没接通。"}, {"id": "2.11", "k": "beep", "p": "11上 ↔ 14上（TXB HV 针）", "want": true, "e": "响", "cause": "P7 没接通，TXB 的 5V 侧没电。"}, {"id": "2.12", "k": "beep", "p": "V1 + ↔ 4上", "want": true, "e": "响", "cause": "P11 没接通，R1 没有上拉电源。"}, {"id": "2.13", "k": "beep", "p": "MCU 的 3.3V 针 ↔ 14下（TXB LV 针）", "want": true, "e": "响", "cause": "M1 没接通，TXB 的 3.3V 侧没电。"}, {"id": "2.14", "k": "beep", "p": "MCU 的 DIR 针 ↔ 15下（TXB A1 针）", "want": true, "e": "响", "cause": "S1 没接通或接到了别的 MCU 引脚。"}, {"id": "2.15", "k": "beep", "p": "MCU 的 RX 针 ↔ 16下（TXB A2 针）", "want": true, "e": "响", "cause": "S2 没接通或 RX、TX 接反。"}, {"id": "2.16", "k": "beep", "p": "MCU 的 TX 针 ↔ 17下（TXB A3 针）", "want": true, "e": "响", "cause": "S3 没接通或 RX、TX 接反。"}, {"id": "2.17", "k": "beep", "p": "15上（TXB B1 针） ↔ 7上（241 第 7 脚 2OE）", "want": true, "e": "响", "cause": "S4 没接通。"}, {"id": "2.18", "k": "beep", "p": "7上 ↔ 6下（241 第 1 脚 1OE）", "want": true, "e": "响", "cause": "S7 没接通：1OE 被 R3 一直拉低，接收一直打开，会收到自己发的数据。"}, {"id": "2.19", "k": "beep", "p": "8上（241 第 6 脚 1Y） ↔ 16上（TXB B2 针）", "want": true, "e": "响", "cause": "S5 没接通，接收通路断开。"}, {"id": "2.20", "k": "beep", "p": "17上（TXB B3 针） ↔ 9上（241 第 5 脚 2A）", "want": true, "e": "响", "cause": "S6 没接通，发送通路断开。"}, {"id": "2.21", "k": "beep", "p": "8下（241 第 3 脚 2Y） ↔ 4下", "want": true, "e": "响", "cause": "S8 没接通，发送到不了 DATA。"}, {"id": "2.22", "k": "beep", "p": "7下（241 第 2 脚 1A） ↔ 4下", "want": true, "e": "响", "cause": "S9 没接通，DATA 到不了接收端。"}, {"id": "2.23", "k": "beep", "p": "4下 ↔ 舵机线 3 号线的插头端", "want": true, "e": "响", "cause": "舵机线或排针接触不良。"}, {"id": "2.24", "k": "beep", "p": "V1 + ↔ V1 −", "want": false, "e": "不响", "cause": "5V 对地短路。先找出短路再上电。"}, {"id": "2.25", "k": "beep", "p": "14下 ↔ V3 −", "want": false, "e": "不响", "cause": "3.3V 对地短路。"}, {"id": "2.26", "k": "beep", "p": "14下 ↔ 14上", "want": false, "e": "不响", "cause": "3.3V 和 5V 连在一起了，会损坏 MCU。"}, {"id": "2.27", "k": "beep", "p": "15下 ↔ 16下", "want": false, "e": "不响", "cause": "相邻两列短路（DIR 和 RX）。"}, {"id": "2.28", "k": "beep", "p": "16下 ↔ 17下", "want": false, "e": "不响", "cause": "相邻两列短路（RX 和 TX）。"}, {"id": "2.29", "k": "beep", "p": "15上 ↔ 16上", "want": false, "e": "不响", "cause": "相邻两列短路。"}, {"id": "2.30", "k": "beep", "p": "16上 ↔ 17上", "want": false, "e": "不响", "cause": "相邻两列短路。"}, {"id": "2.31", "k": "beep", "p": "7上 ↔ 8上", "want": false, "e": "不响", "cause": "241 相邻引脚短路（2OE 和 1Y）。"}, {"id": "2.32", "k": "beep", "p": "8上 ↔ 9上", "want": false, "e": "不响", "cause": "241 相邻引脚短路（1Y 和 2A）。"}, {"id": "2.33", "k": "beep", "p": "6下 ↔ 7下", "want": false, "e": "不响", "cause": "241 相邻引脚短路（1OE 和 1A）。"}, {"id": "2.34", "k": "beep", "p": "4下 ↔ V1 −", "want": false, "e": "不响", "cause": "DATA 对地短路。"}, {"id": "2.35", "k": "ohm", "p": "4上 ↔ 4下", "lo": 8, "hi": 11, "e": "约 10 kΩ", "cause": "不是 10k：R1 阻值不对或没插好。读数为 0 说明 DATA 和 5V 短路。"}, {"id": "2.36", "k": "ohm", "p": "6下 ↔ 9下", "lo": 70, "hi": 110, "e": "约 100 kΩ", "cause": "读到约 10k 就是 R3 插成了 10k；读不到说明 R3 没插好。"}, {"id": "2.37", "k": "ohm", "p": "14上 ↔ 16上", "lo": 70, "hi": 110, "e": "约 100 kΩ", "cause": "读到约 10k 就是 R2 插成了 10k；读不到说明 R2 没插好。"}]}, {"id": "3", "t": "上电 · 静态", "setup": "插回舵机线。固件进入<b>模式 A</b>：DIR 输出 0，UART 初始化好但不发送。先插 MCU 的 USB，再开外部 5V。电压档，黑表笔默认放 V3 −。", "items": [{"id": "3.1", "k": "v", "p": "红 V1 +，黑 V1 −", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "cause": "外部电源电压不对，或 E1 没接好。"}, {"id": "3.2", "k": "v", "p": "红 V1 −，黑 V3−", "lo": -0.05, "hi": 0.05, "e": "约 0 V", "cause": "两条地之间有电压差：P1 接触不良。"}, {"id": "3.3", "k": "v", "p": "红 MCU 的 3.3V 针，黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "MCU 板没上电或 3.3V 输出异常。"}, {"id": "3.4", "k": "v", "p": "红 14下（LV），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "M1 接触不良。"}, {"id": "3.5", "k": "v", "p": "红 14上（HV），黑 V3−", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "cause": "P4、P5、P7 这一路有接触不良。"}, {"id": "3.6", "k": "v", "p": "红 6上（241 VCC），黑 V3−", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "cause": "P4 接触不良，或 241 没插好。"}, {"id": "3.7", "k": "v", "p": "红 3下（舵机 VDD），黑 2下", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "cause": "P3 接触不良。"}, {"id": "3.8", "k": "v", "p": "红 19下（OE），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "OE 应该被模块上的 10k 拉到 LV。偏低说明 19 列有别的线把它往下拉。"}, {"id": "3.9", "k": "yn", "p": "外部 5V 打开的瞬间，舵机背面 LED 闪了一下", "e": "是", "cause": "舵机没电或坏了。查 3.7 和舵机线。"}, {"id": "3.10", "k": "v", "p": "红 15下（DIR，A1），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "DIR 没有输出 0：固件没把它设成输出低，或接到了别的引脚。"}, {"id": "3.11", "k": "v", "p": "红 15上（B1），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "A1 是低但 B1 不低：S4、S7 那一路接到了 5V。"}, {"id": "3.12", "k": "v", "p": "红 6下（1OE），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "S7 断开或接错孔。"}, {"id": "3.13", "k": "v", "p": "红 17下（TX，A3），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "UART 空闲时 TX 应该是高。为 0 说明 UART 没初始化、引脚复用没设成 UART，或 S3 接错引脚。"}, {"id": "3.14", "k": "v", "p": "红 17上（B3），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "A3 高但 B3 不高：TXB 的 HV 没电或模块接触不良。"}, {"id": "3.15", "k": "v", "p": "红 4下（DATA），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "DATA 被拉低：DIR 实际上是 1 且 TX 是低，或舵机线 DATA 和 GND 接反。"}, {"id": "3.16", "k": "v", "p": "红 8上（1Y），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "接收时 1Y 应跟随 DATA。为低说明 1OE 不是低，或 241 没电。"}, {"id": "3.17", "k": "v", "p": "红 16上（B2），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "B2 不高：R2 没插好，或 16上 被别的线拉低。（S5 断开时这里仍然是高，要到 5.2 才查得出。）"}, {"id": "3.18", "k": "v", "p": "红 16下（A2 → MCU RX），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "B2 高但 A2 不高：TXB 第 2 通道或 LV 有问题。"}]}, {"id": "4", "t": "发送通路", "setup": "固件进入<b>模式 B</b>：DIR 输出 1，TX 引脚临时改成 GPIO 输出 1。测完前四项后改为<b>模式 C</b>：DIR 仍为 1，TX 输出 0。DATA 被拉低一会儿不会伤到舵机。", "items": [{"id": "4.1", "k": "v", "p": "红 15下（A1），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "DIR 引脚没有输出 1。"}, {"id": "4.2", "k": "v", "p": "红 15上（B1），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "约 3.5V 时 R3 插成了 10k；更低时查 S4、S7 有没有接到地。"}, {"id": "4.3", "k": "v", "p": "红 7上（2OE），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "S4 接触不良。"}, {"id": "4.4", "k": "v", "p": "红 6下（1OE），黑 V3−", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "cause": "S7 接触不良。"}, {"id": "4.5", "k": "v", "p": "红 模式 C：17下（A3），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "TX 引脚没有输出 0：引脚选错或复用没改成 GPIO。"}, {"id": "4.6", "k": "v", "p": "红 模式 C：17上（B3），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "A3 是低但 B3 不低：TXB 第 3 通道有问题。"}, {"id": "4.7", "k": "v", "p": "红 模式 C：9上（241 2A），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "S6 断开。"}, {"id": "4.8", "k": "v", "p": "红 模式 C：4下（DATA），黑 V3−", "lo": 0, "hi": 0.4, "e": "0–0.4 V", "cause": "2A 是低但 DATA 不低：2OE 没打开（查 4.3），S8 断开，或 241 方向插反。"}, {"id": "4.9", "k": "v", "p": "红 模式 C：16下（A2 → MCU RX），黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "发送时 RX 也变低，说明 1Y 没关：1OE 没被拉高（查 4.4、S7），MCU 会收到自己发的数据。"}]}, {"id": "5", "t": "接收通路", "setup": "固件回到<b>模式 A</b>（DIR = 0，UART 空闲）。拿一根线，一端插 V1 −，另一端插 4下 的空孔，让 DATA 接地。DATA 上只有 10k 上拉，接地是安全的。", "items": [{"id": "5.1", "k": "v", "p": "红 DATA 接地时：8上（1Y），黑 V3−", "lo": 0, "hi": 0.4, "e": "0–0.4 V", "cause": "1Y 不跟随 DATA：S9 断开，或 1OE 不是低（查 3.12）。"}, {"id": "5.2", "k": "v", "p": "红 DATA 接地时：16上（B2），黑 V3−", "lo": 0, "hi": 0.4, "e": "0–0.4 V", "cause": "S5 断开。"}, {"id": "5.3", "k": "v", "p": "红 DATA 接地时：16下（A2 → MCU RX），黑 V3−", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "cause": "TXB 第 2 通道有问题。"}, {"id": "5.4", "k": "v", "p": "红 拔掉接地线后：16下，黑 V3−", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "cause": "拔掉后不回高：B2 没有上拉，查 R2。"}, {"id": "5.5", "k": "yn", "p": "如果固件能打印收到的字节：DATA 接地再拔开时，MCU 收到 0x00 或报帧错误", "e": "是", "cause": "电平到了 RX 针但 UART 没收到：RX 引脚复用没设对，或用错了 UART 通道。"}]}, {"id": "6", "t": "固件和数据", "setup": "电平都正确以后，回到正常程序再查这些。", "items": [{"id": "6.1", "k": "yn", "p": "UART 是 57600 bps、8 位数据、无校验、1 位停止位", "e": "是", "cause": "XL330 出厂是 57600。波特率不对，舵机会把数据当成乱码丢掉。"}, {"id": "6.2", "k": "yn", "p": "用的 UART 通道和引脚复用，正好是接到 16下、17下 的那两只针", "e": "是", "cause": "很多 MCU 一个 UART 有多组可选引脚，选错了数据发不到线上。"}, {"id": "6.3", "k": "yn", "p": "DIR 引脚是推挽输出，上电初始化时先写 0", "e": "是", "cause": "开漏或没初始化时 DIR 不受控。"}, {"id": "6.4", "k": "yn", "p": "发送顺序：DIR = 1 → 写完所有字节 → 等“发送完成”（TC）→ DIR = 0 → 接收", "e": "是", "cause": "用“发送缓冲空”（TXE）会提前切 DIR，最后一两个字节被截掉，舵机因 CRC 错误不应答。"}, {"id": "6.5", "k": "yn", "p": "发送前清空接收缓冲，接收超时至少 20ms", "e": "是", "cause": "应答共 14 字节，57600 下约 2.4ms，加上 0.5ms 的 Return Delay。超时太短会提前放弃。"}, {"id": "6.6", "k": "yn", "p": "按 HEX 发 ping：FF FF FD 00 01 03 00 01 19 4E", "e": "是", "cause": "串口助手默认是文本模式，发出去的是 ASCII 字符。PC 经 MCU 转发时，转发程序也必须按 6.4 切换 DIR。"}, {"id": "6.7", "k": "yn", "p": "只测发送：发 FF FF FD 00 01 06 00 03 41 00 01 CC E6，舵机 LED 亮；发 FF FF FD 00 01 06 00 03 41 00 00 C9 66，LED 灭", "e": "是", "cause": "这条不需要接收。LED 能亮说明发送通路、波特率和 ID 都没问题，问题在接收（第 5 节和 6.2）；LED 不亮就查第 4 节、6.1、6.4，或用 6.8 找 ID。"}, {"id": "6.8", "k": "yn", "p": "广播 ping：FF FF FD 00 FE 03 00 01 31 42 能收到应答", "e": "是", "cause": "不知道舵机 ID 时用这条，所有 ID 都会应答。再不行，就依次换 9600、57600、115200、1M、2M、3M、4M 各发一次，排除波特率被改过的情况。"}]}];
+const KEY = 'xl330-fullcheck-v1';
+let st = {};
+try { st = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { st = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+const esc = s => s;
+
+function verdict(it) {
+  const v = st[it.id];
+  if (v === undefined || v === '') return null;
+  if (it.k === 'v' || it.k === 'ohm') {
+    const x = parseFloat(v); if (isNaN(x)) return null;
+    return x >= it.lo && x <= it.hi;
+  }
+  if (it.k === 'beep') return v === (it.want ? 'y' : 'n');
+  return v === 'y';
+}
+
+function ctl(it) {
+  if (it.k === 'v' || it.k === 'ohm') {
+    const u = it.k === 'v' ? 'V' : 'kΩ';
+    return `<input id="in-${it.id}" inputmode="decimal" aria-label="${it.id} 读数（${u}）" value="${st[it.id] ?? ''}"><span class="unit">${u}</span>`;
+  }
+  const [a, b] = it.k === 'beep' ? ['响', '不响'] : ['是', '否'];
+  return `<span class="seg"><button data-id="${it.id}" data-v="y" aria-pressed="${st[it.id]==='y'}">${a}</button><button data-id="${it.id}" data-v="n" aria-pressed="${st[it.id]==='n'}">${b}</button></span>`;
+}
+
+function build() {
+  document.getElementById('secs').innerHTML = S.map(s => `
+  <section id="s${s.id}">
+    <div class="sechead"><span class="secnum">${s.id}</span><h2>${s.t}</h2></div>
+    <p class="setup">${s.setup}</p>
+    <div class="rows">${s.items.map(it => `
+      <div class="row" id="r-${it.id}">
+        <span class="rid">${it.id}</span>
+        <span class="what">${it.p}</span>
+        <span class="meas"><span class="exp">${it.e}</span>
+        <span class="ctl">${ctl(it)}<span class="verdict" id="vd-${it.id}"></span></span></span>
+        <span class="cause" id="c-${it.id}" hidden>${it.cause}</span>
+      </div>`).join('')}
+    </div>
+  </section>`).join('');
+}
+
+function refresh() {
+  let first = null;
+  const pills = S.map(s => {
+    let ok = 0, bad = 0;
+    s.items.forEach(it => {
+      const r = verdict(it);
+      const row = document.getElementById('r-' + it.id);
+      const vd = document.getElementById('vd-' + it.id);
+      row.classList.toggle('bad', r === false);
+      document.getElementById('c-' + it.id).hidden = r !== false;
+      vd.className = 'verdict' + (r === true ? ' ok' : r === false ? ' bad' : '');
+      vd.textContent = r === true ? '通过' : r === false ? '不对' : '';
+      if (r === true) ok++;
+      if (r === false) { bad++; if (!first) first = it.id; }
+    });
+    const n = s.items.length;
+    const cls = bad ? 'bad' : ok === n ? 'ok' : ok ? 'part' : '';
+    return `<a class="secpill ${cls}" href="#s${s.id}"><span class="dot"></span>${s.id} ${s.t.split(' · ').pop()} ${ok}/${n}</a>`;
+  }).join('');
+  const total = S.reduce((a, s) => a + s.items.length, 0);
+  const done = S.reduce((a, s) => a + s.items.filter(it => verdict(it) === true).length, 0);
+  const firstHtml = first
+    ? `<span class="first">第一个不对：<a href="#r-${first}">${first}</a></span>`
+    : `<span class="first ${done === total ? 'clean' : ''}">${done === total ? '全部通过' : `已通过 ${done}/${total}`}</span>`;
+  document.getElementById('bar').innerHTML = pills + `<span class="tail">${firstHtml}<button class="reset" id="reset" type="button">清空</button></span>`;
+}
+
+build(); refresh();
+document.addEventListener('input', e => {
+  if (!e.target.id.startsWith('in-')) return;
+  st[e.target.id.slice(3)] = e.target.value.trim().replace(',', '.'); save(); refresh();
+});
+let armed = false;
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'reset') {
+    if (!armed) { armed = true; b.textContent = '再点一次确认清空'; b.classList.add('arm'); setTimeout(() => { armed = false; refresh(); }, 3000); return; }
+    armed = false; st = {}; save(); build(); refresh(); return;
+  }
+  if (!b.dataset.id) return;
+  const id = b.dataset.id;
+  st[id] = st[id] === b.dataset.v ? '' : b.dataset.v; save();
+  b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', st[id] === x.dataset.v));
+  refresh();
+});
+</script>
+
+</body>
+</html>
