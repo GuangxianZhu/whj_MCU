@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>XL330 快速检查</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a bench checklist — sticky progress strip, then one column of numbered measurement rows; each row reads like a meter readout. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --ink:#18201e; --muted:#5d6a66; --line:#d8dfdc;
+  --accent:#c98a00; --accent-soft:#fff3d1;
+  --ok:#1f7a4d; --ok-soft:#e1f3e9; --bad:#b4342b; --bad-soft:#fbe7e4;
+  --lcd:#e9efe0; --lcd-ink:#28331f;
+  --sans:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121715; --surface:#1a211e; --ink:#e6ece9; --muted:#97a49f; --line:#2c3632;
+  --accent:#f0b429; --accent-soft:#3a2e10;
+  --ok:#5cc98f; --ok-soft:#163325; --bad:#ff7d72; --bad-soft:#3d1c19;
+  --lcd:#202a1d; --lcd-ink:#d6e6c2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1a211e; --ink:#e6ece9; --muted:#97a49f; --line:#2c3632;
+  --accent:#f0b429; --accent-soft:#3a2e10;
+  --ok:#5cc98f; --ok-soft:#163325; --bad:#ff7d72; --bad-soft:#3d1c19;
+  --lcd:#202a1d; --lcd-ink:#d6e6c2; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:28px 64px}
+h1{font-size:1.75rem;line-height:1.25;margin:0 0 .4rem;text-wrap:balance}
+h2{font-size:1.2rem;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:65ch;margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 24px;margin:20px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:.92rem}
+.legend b{font-family:var(--mono);color:var(--accent)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);margin:24px -16px 0;padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.secpill{display:flex;align-items:center;gap:6px;font-size:.82rem;text-decoration:none;color:var(--ink);padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-variant-numeric:tabular-nums}
+.secpill .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.secpill.ok .dot{background:var(--ok)} .secpill.bad .dot{background:var(--bad)} .secpill.part .dot{background:var(--accent)}
+.tail{margin-left:auto;display:flex;gap:12px;align-items:center}
+.first{font-size:.88rem}
+.first a{color:var(--bad);font-weight:600}
+.first.clean{color:var(--ok)}
+.reset{font:inherit;font-size:.82rem;padding:3px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.reset.arm{border-color:var(--bad);color:var(--bad)}
+section{margin-top:36px;scroll-margin-top:72px}
+.sechead{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.secnum{font-family:var(--mono);font-weight:600;color:var(--accent);font-size:1.1rem}
+.setup{margin:8px 0 12px;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0;max-width:80ch;font-size:.93rem}
+.rows{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.row{display:grid;grid-template-columns:3.2rem minmax(0,1fr) auto;scroll-margin-top:72px;gap:4px 14px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row.bad{background:var(--bad-soft)}
+.rid{font-family:var(--mono);font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.what{min-width:0}
+.meas{display:flex;align-items:center;gap:12px}
+.exp{width:8rem;font-family:var(--mono);font-size:.85rem;color:var(--lcd-ink);background:var(--lcd);padding:3px 8px;border-radius:4px;font-variant-numeric:tabular-nums}
+.ctl{display:flex;gap:6px;align-items:center;justify-content:flex-end;width:10rem}
+.ctl input{width:5.2rem;font-family:var(--mono);font-size:.95rem;padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.ctl .unit{font-family:var(--mono);font-size:.8rem;color:var(--muted);width:1.8rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{font:inherit;font-size:.85rem;padding:4px 11px;border:0;background:var(--bg);color:var(--ink);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.verdict{font-size:.8rem;font-weight:700;width:2.4rem;text-align:center;border-radius:4px;padding:1px 0}
+.verdict.ok{color:var(--ok);background:var(--ok-soft)} .verdict.bad{color:var(--bad)}
+.when{display:inline-block;font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 6px;margin-right:8px;white-space:nowrap}
+.goal{display:block;color:var(--muted);font-size:.85rem;margin-top:2px}
+.after{margin:10px 0 0;font-weight:600;color:var(--accent)}
+.cause{grid-column:2 / -1;color:var(--bad);font-size:.9rem}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+th,td{text-align:left;padding:8px 12px;border-top:1px solid var(--line);vertical-align:top}
+th{border-top:0;color:var(--muted);font-weight:500}
+.reply{font-family:var(--mono);background:var(--lcd);color:var(--lcd-ink);padding:10px 14px;border-radius:6px;overflow-x:auto;white-space:nowrap}
+@media (max-width:680px){
+  .row{grid-template-columns:2.6rem minmax(0,1fr)}
+  .meas{grid-column:2;justify-content:space-between}
+  .exp{width:auto}
+  .ctl{width:auto}
+  .bar{position:static;gap:6px}
+  .tail{margin-left:0;width:100%;justify-content:space-between}
+}
+</style>
+
+<div class="wrap">
+  <h1>XL330 快速检查</h1>
+  <p class="lede">4 步、17 项。第 2 步用一个回环测试一次测完 MCU 到 241 的整条通路；只有它不通过，才做第 3 步用跳线定位。填入读数或点选结果，页面自动判断。</p>
+  <div class="legend" id="legend"><div><b>6下</b> 第 6 列槽下方（A–F 行）任一孔或针；<b>6上</b> 槽上方（G–L 行）</div><div><b>V1 + / V1 −</b> 外部 5V 和 GND；<b>V3 −</b> MCU 的 GND（电压项黑表笔默认放这里）</div></div>
+  <div class="bar" id="bar"></div>
+  <div id="secs"></div>
+
+  
+  <section id="sym">
+    <div class="sechead"><span class="secnum">参考</span><h2>按现象找方向</h2></div>
+    <div class="tbl" style="margin-top:12px"><table id="symtbl"></table></div>
+  </section>
+</div>
+
+<script>
+const D = {"sections": [{"id": "1", "short": "电源", "t": "第 1 步：电源和电阻", "setup": "先断电测前两项，再上电测电压。舵机线先从排针上拔掉。", "items": [{"id": "1.1", "k": "beep", "w": "断电", "p": "V1 − ↔ V3 −", "want": true, "e": "响", "g": "外部电源和 MCU 共地。没有共地，任何信号都没有参考电平。", "cause": "P1 没接通，通信一定失败。"}, {"id": "1.2", "k": "yn", "w": "断电", "p": "R2（14K ↔ 16K）和 R3（6B ↔ 9B）都是 100k（棕 黑 黄），R1（4G ↔ 4F）是 10k（棕 黑 橙）", "e": "是", "g": "三颗电阻没有插错。之前 B1 只有 3.5V，就是 R3 插成了 10k。", "cause": "换成正确阻值。"}, {"id": "1.3", "k": "v", "w": "上电", "p": "红 V1 +，黑 V1 −", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "g": "外部 5V 正常。", "cause": "电源电压不对，或 E1 接触不良。"}, {"id": "1.4", "k": "v", "w": "上电", "p": "红 14下（TXB LV），黑 V3 −", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "g": "TXB 的 3.3V 侧有电。", "cause": "MCU 没上电，或 M1 接触不良。"}, {"id": "1.5", "k": "v", "w": "上电", "p": "红 14上（TXB HV），黑 V3 −", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "g": "TXB 的 5V 侧有电。", "cause": "P4、P5、P7 这一路接触不良。"}, {"id": "1.6", "k": "v", "w": "上电", "p": "红 6上（241 VCC），黑 V3 −", "lo": 4.75, "hi": 5.25, "e": "4.75–5.25 V", "g": "241 有电。", "cause": "P4 接触不良，或 241 没插好。"}], "after": null}, {"id": "2", "short": "回环", "t": "第 2 步：一次测完整条通路", "setup": "舵机线仍然拔着。拔掉 <b>S7</b>（7K → 6D 那根）：1OE 被 R3 一直拉低，接收常开，MCU 能从 DATA 上收到自己刚发出的包。烧录并运行<b>程序 L</b>，看 PC 上的打印。", "items": [{"id": "2.1", "k": "yn", "w": "程序 L", "p": "打印 <code>got 10</code> 和 <code>OK: identical</code>", "e": "是", "g": "一项测完 MCU → TXB → 241 → DATA → 241 → TXB → MCU 整条通路，包括 UART 设置和 DIR 切换时机。", "cause": "<code>short</code>：DIR 切回 0 太早，固件要等“发送完成”（TC）而不是“发送缓冲空”（TXE）。<code>got 0</code> 或内容不同：做第 3 步。"}, {"id": "2.2", "k": "yn", "w": "程序 L", "p": "插回 S7 后，打印变成 <code>got 0</code> 和 <code>nothing came back</code>", "e": "是", "g": "正常工作时发送和接收互斥，不会回显。", "cause": "还能收到自己的数据：1OE 没有跟着 DIR 变高，查 S7 的两头（7K、6D）。"}], "after": "两项都对：跳过第 3 步，直接做第 4 步。有不对的：做第 3 步。"}, {"id": "3", "short": "定位", "t": "第 3 步：用跳线定位（只在第 2 步不对时做）", "setup": "S7 插着。先把 S1 从 15B、S3 从 17B 拔出来（MCU 那头不动），再按“跳线 A/B/C”在 15下、17下 的空孔接短线。", "items": [{"id": "3.1", "k": "v", "w": "跳线 A", "p": "红 4下（DATA），黑 V3 −", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "g": "总线空闲时是高电平。", "cause": "DATA 被拉低：S8 接错，或 241 方向插反。（详细见分级检查 3.19）"}, {"id": "3.2", "k": "v", "w": "跳线 A", "p": "红 16下（A2 → MCU RX），黑 V3 −", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "g": "接收通路的空闲高电平一路传到了 MCU。", "cause": "查 S9、S5，以及 R2。（详细见分级检查 3.20）"}, {"id": "3.3", "k": "v", "w": "跳线 B", "p": "红 15上（B1），黑 V3 −", "lo": 4.5, "hi": 5.25, "e": "4.5–5.25 V", "g": "DIR = 1 的高电平够高，241 能识别。约 4.8V 是正常的。", "cause": "约 3.5V：R3 插成了 10k。更低：查 S4、S7。（详细见分级检查 3.21）"}, {"id": "3.4", "k": "v", "w": "跳线 C", "p": "红 4下（DATA），黑 V3 −", "lo": 0, "hi": 0.4, "e": "0–0.4 V", "g": "发送通路：TX 为低时，DATA 被拉低。", "cause": "逐点测 17上（B3）→ 9上（2A）→ 8下（2Y）→ 4下，哪一点没变低，问题就在它前面那段。（详细见分级检查 3.24）"}, {"id": "3.5", "k": "v", "w": "跳线 C", "p": "红 16下（A2 → MCU RX），黑 V3 −", "lo": 3.0, "hi": 3.6, "e": "3–3.6 V", "g": "发送时接收通路是关着的。", "cause": "变低说明 1Y 没关：查 S7。（详细见分级检查 3.25）"}, {"id": "3.6", "k": "v", "w": "跳线 A", "p": "红 DATA 接地时：16下，黑 V3 −", "lo": 0, "hi": 0.3, "e": "0–0.3 V", "g": "接收通路：用一根线把 4下 的空孔接到 V1 −（DATA 只有 10k 上拉，接地是安全的），低电平应一路传到 MCU 的 RX。", "cause": "逐点测 7下（1A）→ 8上（1Y）→ 16上（B2）→ 16下，哪一点没变低，问题就在它前面那段。（详细见分级检查 3.26）"}], "after": "测完拆掉跳线，S1、S3 插回 15B、17B，回到第 2 步再测。6 项都对但第 2 步还是不对，问题在固件：按分级检查第 1 级把 MCU 单独测一遍。"}, {"id": "4", "short": "舵机", "t": "第 4 步：接上舵机", "setup": "断电，S7 插着，舵机线插回排针（2B、3B、4B）。烧录并运行<b>程序 S</b>。", "items": [{"id": "4.1", "k": "yn", "w": "上电", "p": "外部 5V 打开的瞬间，舵机背面 LED 闪一下", "e": "是", "g": "舵机有电，能启动。", "cause": "查舵机线顺序（2B = GND，3B = VDD，4B = DATA）和 P3。"}, {"id": "4.2", "k": "yn", "w": "程序 S", "p": "舵机 LED 每秒亮、灭交替", "e": "是", "g": "舵机能听懂发过去的包：波特率和 ID 都对。", "cause": "第 2 步通过但 LED 不动：舵机的 ID 或波特率被改过。看打印里的 broadcast ping 有没有应答；都没有就按分级检查 4.10 扫描波特率。"}, {"id": "4.3", "k": "yn", "w": "程序 S", "p": "打印 <code>ping ID 1 -> 0</code> 和 <code>model 1200</code>（M077 是 1190）", "e": "是", "g": "完整的一问一答。", "cause": "LED 能动但 ping 不对：看打印的错误码，-1 是超时（接收超时至少 20ms），-2 是 CRC 错误。"}], "after": null}], "modes": [["程序 L", "调用 <code>dxl_bench_run('L')</code>：每 0.5 秒发一个 ping，把收回来的字节打印到 PC，并直接给出判断。"], ["程序 S", "调用 <code>dxl_bench_run('S')</code>：每秒让舵机 LED 亮或灭一次，再 ping，打印结果。"], ["跳线 A", "DIR = 0、TX = 1：15下 接 V3 −，17下 接 14下。"], ["跳线 B", "DIR = 1、TX = 1：15下 和 17下 都接 14下。"], ["跳线 C", "DIR = 1、TX = 0：15下 接 14下，17下 接 V3 −。"], ["跳线注意", "接跳线前先把 S1、S3 从 15B、17B 拔出来；A 侧只接 14下（3.3V）或 V3 −，不要接 5V。"]], "symptoms": [["第 2 步打印 short", "DIR 切回 0 太早，改为等“发送完成”（TC）"], ["第 2 步 got 0", "第 3 步：3.4 不对是发送通路，3.6 不对是接收通路，都对就是固件"], ["第 2 步通过，舵机没反应", "4.1（舵机电源和线序）、4.2（ID 和波特率）"]]};
+const S = D.sections;
+const KEY = 'xl330-quick-v1';
+let st = {};
+try { st = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { st = {}; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+const esc = s => s;
+
+function verdict(it) {
+  const v = st[it.id];
+  if (v === undefined || v === '') return null;
+  if (it.k === 'v' || it.k === 'ohm') {
+    const x = parseFloat(v); if (isNaN(x)) return null;
+    return x >= it.lo && x <= it.hi;
+  }
+  if (it.k === 'beep') return v === (it.want ? 'y' : 'n');
+  return v === 'y';
+}
+
+function ctl(it) {
+  if (it.k === 'v' || it.k === 'ohm') {
+    const u = it.k === 'v' ? 'V' : 'kΩ';
+    return `<input id="in-${it.id}" inputmode="decimal" aria-label="${it.id} 读数（${u}）" value="${st[it.id] ?? ''}"><span class="unit">${u}</span>`;
+  }
+  const [a, b] = it.k === 'beep' ? ['响', '不响'] : ['是', '否'];
+  return `<span class="seg"><button data-id="${it.id}" data-v="y" aria-pressed="${st[it.id]==='y'}">${a}</button><button data-id="${it.id}" data-v="n" aria-pressed="${st[it.id]==='n'}">${b}</button></span>`;
+}
+
+function build() {
+  document.getElementById('secs').innerHTML = S.map(s => `
+  <section id="s${s.id}">
+    <div class="sechead"><span class="secnum">${s.id}</span><h2>${s.t}</h2></div>
+    <p class="setup">${s.setup}</p>
+    <div class="rows">${s.items.map(it => `
+      <div class="row" id="r-${it.id}">
+        <span class="rid">${it.id}</span>
+        <span class="what"><span class="when">${it.w}</span>${it.p}<span class="goal">目的：${it.g}</span></span>
+        <span class="meas"><span class="exp">${it.e}</span>
+        <span class="ctl">${ctl(it)}<span class="verdict" id="vd-${it.id}"></span></span></span>
+        <span class="cause" id="c-${it.id}" hidden>${it.cause}</span>
+      </div>`).join('')}
+    </div>
+    ${s.after ? `<p class="after">${s.after}</p>` : ''}
+  </section>`).join('');
+}
+
+function refresh() {
+  let first = null;
+  const pills = S.map(s => {
+    let ok = 0, bad = 0;
+    s.items.forEach(it => {
+      const r = verdict(it);
+      const row = document.getElementById('r-' + it.id);
+      const vd = document.getElementById('vd-' + it.id);
+      row.classList.toggle('bad', r === false);
+      document.getElementById('c-' + it.id).hidden = r !== false;
+      vd.className = 'verdict' + (r === true ? ' ok' : r === false ? ' bad' : '');
+      vd.textContent = r === true ? '通过' : r === false ? '不对' : '';
+      if (r === true) ok++;
+      if (r === false) { bad++; if (!first) first = it.id; }
+    });
+    const n = s.items.length;
+    const cls = bad ? 'bad' : ok === n ? 'ok' : ok ? 'part' : '';
+    return `<a class="secpill ${cls}" href="#s${s.id}"><span class="dot"></span>${s.id} ${s.short} ${ok}/${n}</a>`;
+  }).join('');
+  const total = S.reduce((a, s) => a + s.items.length, 0);
+  const done = S.reduce((a, s) => a + s.items.filter(it => verdict(it) === true).length, 0);
+  const firstHtml = first
+    ? `<span class="first">第一个不对：<a href="#r-${first}">${first}</a></span>`
+    : `<span class="first ${done === total ? 'clean' : ''}">${done === total ? '全部通过' : `已通过 ${done}/${total}`}</span>`;
+  document.getElementById('bar').innerHTML = pills + `<span class="tail">${firstHtml}<button class="reset" id="reset" type="button">清空</button></span>`;
+}
+
+document.getElementById('legend').insertAdjacentHTML('beforeend', D.modes.map(([a,b]) => `<div><b>${a}</b> ${b}</div>`).join(''));
+document.getElementById('symtbl').innerHTML = '<tr><th>现象</th><th>先看</th></tr>' + D.symptoms.map(([a,b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+build(); refresh();
+document.addEventListener('input', e => {
+  if (!e.target.id.startsWith('in-')) return;
+  st[e.target.id.slice(3)] = e.target.value.trim().replace(',', '.'); save(); refresh();
+});
+let armed = false;
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.id === 'reset') {
+    if (!armed) { armed = true; b.textContent = '再点一次确认清空'; b.classList.add('arm'); setTimeout(() => { armed = false; refresh(); }, 3000); return; }
+    armed = false; st = {}; save(); document.getElementById('legend').insertAdjacentHTML('beforeend', D.modes.map(([a,b]) => `<div><b>${a}</b> ${b}</div>`).join(''));
+document.getElementById('symtbl').innerHTML = '<tr><th>现象</th><th>先看</th></tr>' + D.symptoms.map(([a,b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
+build(); refresh(); return;
+  }
+  if (!b.dataset.id) return;
+  const id = b.dataset.id;
+  st[id] = st[id] === b.dataset.v ? '' : b.dataset.v; save();
+  b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', st[id] === x.dataset.v));
+  refresh();
+});
+</script>
+
+</body>
+</html>
