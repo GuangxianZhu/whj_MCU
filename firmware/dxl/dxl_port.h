@@ -33,7 +33,10 @@ void dxl_port_wait_tx_complete(void);
 void dxl_port_flush_rx(void);
 
 /* Wait up to timeout_ms for one received byte.
- * Return 1 and store it in *b, or return 0 on timeout. */
+ * Return 1 and store it in *b, or return 0 on timeout.
+ * Receive in the UART interrupt into a small ring buffer and read from that
+ * buffer here. The loopback test in dxl_bench.c ('L') needs it: there the
+ * bytes come back while dxl_port_write() is still sending them. */
 int dxl_port_read_byte(uint8_t *b, uint32_t timeout_ms);
 
 #endif /* DXL_PORT_H */
