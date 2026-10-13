@@ -7,6 +7,7 @@
 | `dxl/dxl_port.h` | 要你用 KM1M7C SDK 实现的 5 个函数（UART + 一个 GPIO） |
 | `dxl/dxl.h`, `dxl/dxl.c` | 组包、CRC、字节填充、收发、解析应答 |
 | `dxl/dxl_example.c` | 第一次上电的测试流程：ping → LED 闪 3 下 → 舵机来回转 |
+| `dxl/dxl_bench.c` | [分级检查](../docs/breadboard/分级检查.md)用的测试程序：`'A'` DIR = 0、`'B'` DIR = 1、`'L'` 回环、`'S'` 舵机（LED + ping） |
 | `test/host_test.c` | 在电脑上用假舵机验证驱动，不需要硬件 |
 
 ## 接到 Keil 工程里
@@ -23,6 +24,7 @@
 | `dxl_port_read_byte(&b, ms)` | 等一个字节，超时返回 0 | 计时可用 SysTick |
 
 3. 再提供 `delay_ms()` 和 `log_printf()`（例子里用来打印结果，可以走 Nu-Link 虚拟串口），然后在 `main()` 里初始化时钟、UART、DIR 引脚后调用 `dxl_example_run()`。
+4. 排查时改为调用 `dxl_bench_run('L')` 之类（加上 `dxl_bench.c`），模式含义见文件开头的注释和分级检查。
 
 UART 设置：**57600 bps，8 位数据，无校验，1 位停止位**（XL330 出厂设置，ID = 1，Protocol 2.0）。
 
