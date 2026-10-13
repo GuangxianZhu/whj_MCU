@@ -150,6 +150,8 @@ python tools/check_wiring.py
 
 ## 排查
 
+ping 没有应答时，按 [ping无应答排查.md](ping无应答排查.md) 一步步测。
+
 | 现象 | 先查什么 |
 |---|---|
 | ping 一直没有应答 | 舵机上电时 LED 有没有闪；波特率是否 57600；MCU 的 DIR、RX、TX 是否分别接第 15、16、17 列（槽下方）；上电后（DIR = 0）第 4 列 DATA 对 GND 是否约 5V；DIR = 1 时 241 第 7 脚是否约 5V |
