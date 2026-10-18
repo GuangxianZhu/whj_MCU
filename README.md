@@ -8,6 +8,9 @@ PC ──USB── KM1M7C (3.3V IO) ⇄ TXB0104 (3.3V↔5V) ⇄ 74LVC2G241 (5V, 
 
 ## 从这里开始
 
+换新对话继续做时，先让 Claude 读 [`HANDOFF.md`](HANDOFF.md)。
+
+
 1. **硬件**：[`docs/breadboard/README.md`](docs/breadboard/README.md)。电路图、按实际面包板画的布局、逐根接线清单、上电前检查、物料、排查表。交互版是 [`docs/breadboard/xl330_breadboard.html`](docs/breadboard/xl330_breadboard.html)，下载后用浏览器打开，可以逐根打勾、点一行高亮对应的线。
 2. **软件**：[`firmware/README.md`](firmware/README.md)。DYNAMIXEL Protocol 2.0 驱动，移植到 KM1M7C 只需实现 5 个函数（DIR 引脚和 UART），附第一次通信测试流程和电脑上可跑的单元测试。
 3. **排查**：先做 [`docs/breadboard/快速检查.md`](docs/breadboard/快速检查.md)（4 步 18 项，不用改程序，交互版 [`快速检查.html`](docs/breadboard/快速检查.html)），拔掉 S7 做一次回环测完整条通路，不通过时才逐段定位。要更细地查再看下面两份。
