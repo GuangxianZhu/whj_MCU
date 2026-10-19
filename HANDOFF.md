@@ -45,6 +45,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `tools/check_wiring.py` | 接线网络核对（`--selftest` 自测） |
 | `tools/*_check_data.py` | 三份检查表的数据源（生成 md 和页面 JSON） |
 | `firmware/dxl/` | Protocol 2.0 驱动 `dxl.c/.h`、硬件接口 `dxl_port.h`、示例 `dxl_example.c`、测试程序 `dxl_bench.c`（'A' DIR=0、'B' DIR=1、'L' 回环、'S' 舵机） |
+| `firmware/流程图.md` | 固件流程图（mermaid）：main()、dxl_txrx()、PC 转发 + 自动切 DIR |
 | `firmware/test/host_test.c` | 电脑上跑的驱动测试：`cc -std=c99 -I../dxl ../dxl/dxl.c host_test.c && ./a.out` |
 
 已发布的页面（用户私有链接）：接线页面 https://claude.ai/artifact/4Qn1ReW1PshwLSQkgHGXHQ ，快速检查 https://claude.ai/artifact/8BTS5Sn3S5jwhEpWnFRiHe ，分级检查 https://claude.ai/artifact/3tjyx3psWRoAS3vPzx615M ，全面检查 https://claude.ai/artifact/1fYqJRUWT76FcXKFh7SsPT 。
