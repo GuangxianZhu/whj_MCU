@@ -45,6 +45,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `tools/check_wiring.py` | 接线网络核对（`--selftest` 自测） |
 | `tools/*_check_data.py` | 三份检查表的数据源（生成 md 和页面 JSON） |
 | `firmware/dxl/` | Protocol 2.0 驱动 `dxl.c/.h`、硬件接口 `dxl_port.h`、示例 `dxl_example.c`、测试程序 `dxl_bench.c`（'A' DIR=0、'B' DIR=1、'L' 回环、'S' 舵机） |
+| `firmware/应用通信流程.md` | 用户要照着写的转发固件设计：按包转发 PC 的数据、请求队列、总线事务，以后加传感器作为第二个指令来源 |
 | `firmware/流程图.md` | 固件流程图（mermaid）：main()、dxl_txrx()、PC 转发 + 自动切 DIR |
 | `firmware/test/host_test.c` | 电脑上跑的驱动测试：`cc -std=c99 -I../dxl ../dxl/dxl.c host_test.c && ./a.out` |
 
