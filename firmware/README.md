@@ -8,6 +8,7 @@
 | `dxl/dxl.h`, `dxl/dxl.c` | 组包、CRC、字节填充、收发、解析应答 |
 | `dxl/dxl_example.c` | 第一次上电的测试流程：ping → LED 闪 3 下 → 舵机来回转 |
 | `dxl/dxl_bench.c` | [分级检查](../docs/breadboard/分级检查.md)用的测试程序：`'A'` DIR = 0、`'B'` DIR = 1、`'L'` 回环、`'S'` 舵机（LED + ping） |
+| `流程图.md` | 固件流程图：`main()`、一次收发 `dxl_txrx()`、PC 转发加自动切 DIR（GitHub 上直接显示） |
 | `test/host_test.c` | 在电脑上用假舵机验证驱动，不需要硬件 |
 
 ## 接到 Keil 工程里
