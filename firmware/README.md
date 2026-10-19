@@ -1,16 +1,19 @@
 # XL330 驱动（DYNAMIXEL Protocol 2.0）
 
-给 KM1M7C 用的最小驱动：ping、读、写，外加 LED、扭矩、目标位置、当前位置几个常用函数。和硬件有关的只有 5 个函数，集中在 `dxl/dxl_port.h`，其余是纯 C，不用改。
+给 KM1M7C 用的最小驱动：ping、读、写，外加 LED、扭矩、目标位置、当前位置几个常用函数，以及多个舵机用的 Sync Write、Sync Read、改 ID、Reboot。和硬件有关的只有 5 个函数，集中在 `dxl/dxl_port.h`，其余是纯 C，不用改。
 
 | 文件 | 作用 |
 |---|---|
 | `dxl/dxl_port.h` | 要你用 KM1M7C SDK 实现的 5 个函数（UART + 一个 GPIO） |
 | `dxl/dxl.h`, `dxl/dxl.c` | 组包、CRC、字节填充、收发、解析应答 |
 | `dxl/dxl_example.c` | 第一次上电的测试流程：ping → LED 闪 3 下 → 舵机来回转 |
+| `dxl/dxl_example2.c` | 两个舵机（ID 1、2）：ping 两个 → 轮流闪 LED → Sync Write 同时反方向转，Sync Read 读回两个位置 |
+| `bridge/` | **PC ↔ 舵机转发固件**：按包收 PC 的数据、检查 CRC、自动切 DIR、应答原样回 PC；以后传感器控制用 `bridge_submit()` 放包。`bridge_main_template.c` 是要填 TODO 的模板 |
 | `dxl/dxl_bench.c` | [分级检查](../docs/breadboard/分级检查.md)用的测试程序：`'A'` DIR = 0、`'B'` DIR = 1、`'L'` 回环、`'S'` 舵机（LED + ping） |
 | `应用通信流程.md` | 写转发固件用的设计：PC 包按“包”转发、请求队列、总线事务、以后接传感器（GitHub 上直接显示） |
 | `流程图.md` | 固件流程图：`main()`、一次收发 `dxl_txrx()`、PC 转发加自动切 DIR（GitHub 上直接显示） |
 | `test/host_test.c` | 在电脑上用假舵机验证驱动，不需要硬件 |
+| `test/bridge_test.c` | 在电脑上验证转发固件：假时钟、假 PC、两个假舵机 |
 
 ## 接到 Keil 工程里
 
@@ -39,9 +42,12 @@ DIR 拉低后 241 会关掉发送通道。“发送缓冲空”在最后一个�
 ```sh
 cd firmware/test
 cc -std=c99 -Wall -Wextra -I../dxl ../dxl/dxl.c host_test.c -o host_test && ./host_test
+cc -std=c99 -Wall -Wextra -I../dxl -I../bridge ../dxl/dxl.c ../bridge/bridge.c bridge_test.c -o bridge_test && ./bridge_test
 ```
 
-测试检查了：ping 包和 ROBOTIS 手册的例子逐字节一致、DIR 在发送时为 1 接收时为 0、LED 写入包、发送和接收两个方向的字节填充、超时、CRC 错误、舵机错误码。
+驱动测试检查了：ping、Sync Write、Sync Read（包和两个应答）、Reboot 的包和 ROBOTIS 手册的例子逐字节一致；DIR 在发送时为 1 接收时为 0；LED 写入包、改 ID 的包；发送和接收两个方向的字节填充；超时、CRC 错误、舵机错误码；Sync Read 时一个舵机不在，另一个照样读到。
+
+转发测试检查了：PC 的包原样上总线、应答原样回 PC、DIR 时序；包分两段到达；中途断开超过 20 ms 丢弃；CRC 错不上总线；Sync Write 不等应答；连续两个包按顺序执行；广播 ping 收到两个舵机的应答；舵机不在时不回任何东西；包头前的杂字节被跳过；`bridge_submit()` 的应答交给提交者。
 
 ## 常用指令包（ID 1）
 

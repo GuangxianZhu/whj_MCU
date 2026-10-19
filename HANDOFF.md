@@ -27,11 +27,11 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 
 ## 现在的状态
 
-- 用户的程序：只有一个 **手动切换 DIR（1/0）** 的口，PC 串口助手用 HEX **手动**发数据，没有循环发送。
-- 已确认：DIR 那一路电平正常（换 R3 后 4.77V）。
-- 还没收到过舵机应答。原因很可能是：舵机收到包约 0.5ms 后回答，**手动切 DIR 来不及**，必须由程序在发完后（等“发送完成” TC 标志）立刻把 DIR 切回 0。
-- 下一步建议：按 `docs/breadboard/快速检查.md` 做——第 2 步拔掉 S7 做回环（DIR = 1 手动发 ping，应收回同样 10 字节），第 4 步 DIR = 1 发 LED 包看舵机 LED 亮不亮；要收 ping 应答，就在转发程序里加自动切 DIR（快速检查文末有示意代码）。
-- 等用户提供：他现在能用的 KM1M7C UART / 转发代码（或 SDK 例程），以便写 `dxl_port_km1m7c.c`（实现 `firmware/dxl/dxl_port.h` 的 5 个函数 + `delay_ms` + `log_printf`），或直接在他的转发代码里加自动切 DIR。
+- **一个 XL330 已经驱动成功**（用户 2026-10-20 告知）。
+- 用户原来的程序：一个手动切换 DIR（1/0）的口，PC 串口助手用 HEX 手动发数据。
+- 已写好转发固件 `firmware/bridge/`（按包转发 PC 的数据、自动切 DIR、应答原样回 PC），用户要把 `bridge_main_template.c` 里的 TODO 换成 KM1M7C 的 SDK 调用（两个 UART、DIR GPIO、SysTick）。用户提供 SDK 例程或现有 UART 代码时，可以帮他填。
+- 下一步：接第二个舵机，按 `docs/两个舵机.md`：先单独把第二个改成 ID 2，再串起来做 T1–T8 测试；两个同时用力时电源要 3 A 以上，舵机电源最好不走面包板。
+- 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
 
@@ -48,9 +48,13 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `firmware/dxl/` | Protocol 2.0 驱动 `dxl.c/.h`、硬件接口 `dxl_port.h`、示例 `dxl_example.c`、测试程序 `dxl_bench.c`（'A' DIR=0、'B' DIR=1、'L' 回环、'S' 舵机） |
 | `firmware/应用通信流程.md` | 用户要照着写的转发固件设计：按包转发 PC 的数据、请求队列、总线事务，以后加传感器作为第二个指令来源 |
 | `firmware/流程图.md` | 固件流程图（mermaid）：main()、dxl_txrx()、PC 转发 + 自动切 DIR |
+| `firmware/bridge/` | 转发固件：`bridge.c/.h`、`bridge_port.h`（PC 写和毫秒时钟两个函数）、`bridge_main_template.c`（填 TODO 的模板）；测试 `firmware/test/bridge_test.c` |
+| `firmware/dxl/dxl_example2.c` | 两个舵机的示例（Sync Write / Sync Read） |
+| `docs/两个舵机.md` | 接第二个舵机的调研、电源、改 ID 步骤、测试 T1–T8 |
+| `tools/dxl_packet.py` | 生成任意包的 HEX（`ping 2`、`setid 1 2`、`sync-goal 1:1024 2:3072` …）和解读应答（`parse "…"`）；`selftest` 对照 e-Manual 例子 |
 | `firmware/test/host_test.c` | 电脑上跑的驱动测试：`cc -std=c99 -I../dxl ../dxl/dxl.c host_test.c && ./a.out` |
 
-已发布的页面（用户私有链接）：接线页面 https://claude.ai/artifact/4Qn1ReW1PshwLSQkgHGXHQ ，快速检查 https://claude.ai/artifact/8BTS5Sn3S5jwhEpWnFRiHe ，分级检查 https://claude.ai/artifact/3tjyx3psWRoAS3vPzx615M ，全面检查 https://claude.ai/artifact/1fYqJRUWT76FcXKFh7SsPT 。
+已发布的页面（用户私有链接）：接线页面 https://claude.ai/artifact/4Qn1ReW1PshwLSQkgHGXHQ ，快速检查 https://claude.ai/artifact/8BTS5Sn3S5jwhEpWnFRiHe ，分级检查 https://claude.ai/artifact/3tjyx3psWRoAS3vPzx615M ，全面检查 https://claude.ai/artifact/1fYqJRUWT76FcXKFh7SsPT ，固件流程图 https://claude.ai/artifact/JjVaevA95feM5GqgyKTArE ，应用通信流程 https://claude.ai/artifact/REfWcoEBPBHtqpvm7pciKv 。
 
 ## 常用数据包（ID 1，57600 8N1，Protocol 2.0）
 
@@ -61,12 +65,17 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | LED 亮 / 灭 | `FF FF FD 00 01 06 00 03 41 00 01 CC E6` / `… 41 00 00 C9 66` |
 | 广播 LED 亮 / 灭 | `FF FF FD 00 FE 06 00 03 41 00 01 3C 16` / `… 41 00 00 39 96` |
 | ID 1 改为 2 / 3 | `FF FF FD 00 01 06 00 03 07 00 02 BD 63` / `… 07 00 03 B8 E3` |
+| ping 2 | `FF FF FD 00 02 03 00 01 19 72` |
+| Sync Write：ID 1 → 1024，ID 2 → 3072 | `FF FF FD 00 FE 11 00 83 74 00 04 00 01 00 04 00 00 02 00 0C 00 00 13 0C` |
+| Sync Read 两个当前位置 | `FF FF FD 00 FE 09 00 82 84 00 04 00 01 02 CE FA` |
 
-正常 ping 应答：`FF FF FD 00 01 07 00 55 00 B0 04 xx CRC CRC`（14 字节，B0 04 = 型号 1200 / XL330-M288）。新的包用 `firmware/dxl/dxl.c` 里的 `dxl_crc16` 算 CRC，不要手算。
+正常 ping 应答：`FF FF FD 00 01 07 00 55 00 B0 04 xx CRC CRC`（14 字节，B0 04 = 型号 1200 / XL330-M288）。新的包用 `python tools/dxl_packet.py …` 生成（和固件 `dxl_crc16` 结果一致），不要手算。
 
-## 已讨论但没做的
+## 已做但还没在实物上验证 / 还没做的
 
-- **多个 XL330**：电路不用改，舵机之间菊花链；先一个个改成不同 ID（地址 7）；电源按“个数 × 约 1.5A”选，舵机电源不要走面包板（触点约 1A），只留 DATA 和一根 GND；多个舵机同时动要加 Sync Write（驱动里还没有）。
+- 两个舵机的软件和计划已经做好（`docs/两个舵机.md`、驱动的 Sync Write/Read），**还没在实物上测**。
+- 转发固件 `firmware/bridge/` 只在电脑上测过，**还没在 KM1M7C 上跑**；模板里的 TODO 要用 SDK 填。
+- 根据传感器数据控制：只有设计（`firmware/应用通信流程.md` 第 6 节），还没写代码。
 
 ## 提交方式
 
