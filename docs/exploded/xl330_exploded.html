@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>XL330 信号链爆炸图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+/* Layout: full-bleed 3D stage; header top-left, part sheet right, control dock bottom. Studio-gray drafting look, amber "probe" accent. */
+:root{
+  --bg:#e6e9ec; --bg2:#f6f7f8; --ink:#14191f; --ink2:#4d5763; --ink3:#7d8793;
+  --line:rgba(20,32,44,.12); --panel:rgba(249,250,251,.84); --panel2:rgba(236,239,242,.9);
+  --accent:#c98712; --accent-ink:#1d1405; --accent-soft:rgba(201,135,18,.14);
+  --grid:#aeb6bf; --ok:#2b8a4a; --off:#9aa3ad;
+  --w5:#d9423b; --wg:#2a2d31; --w33:#ee7d22; --wdir:#2f6fd6; --wrx:#2b9a4a; --wtx:#c9a21a; --wdata:#8b4fd0;
+  --f-disp:"Barlow Condensed","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0c1014; --bg2:#1b222a; --ink:#e7ebee; --ink2:#a3aeb9; --ink3:#6f7b87;
+  --line:rgba(255,255,255,.09); --panel:rgba(17,22,28,.78); --panel2:rgba(28,35,43,.86);
+  --accent:#f0b24a; --accent-ink:#1d1405; --accent-soft:rgba(240,178,74,.14);
+  --grid:#28313b; --ok:#4cc172; --off:#56616c; --wg:#8d969f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0c1014; --bg2:#1b222a; --ink:#e7ebee; --ink2:#a3aeb9; --ink3:#6f7b87;
+  --line:rgba(255,255,255,.09); --panel:rgba(17,22,28,.78); --panel2:rgba(28,35,43,.86);
+  --accent:#f0b24a; --accent-ink:#1d1405; --accent-soft:rgba(240,178,74,.14);
+  --grid:#28313b; --ok:#4cc172; --off:#56616c; --wg:#8d969f; color-scheme:dark}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;-webkit-font-smoothing:antialiased}
+#stage{position:fixed;inset:0;background:radial-gradient(120% 90% at 55% 30%,var(--bg2),var(--bg) 70%)}
+#stage canvas{display:block;outline:none}
+#labels{position:fixed;inset:0;pointer-events:none}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.glass{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+
+/* header */
+#head{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));max-width:min(620px,calc(100vw - 32px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+h1{margin:0;font-family:var(--f-disp);font-weight:600;font-size:30px;line-height:1.05;letter-spacing:.01em;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+#chain{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;pointer-events:auto;padding:2px 0;scrollbar-width:none}
+#chain::-webkit-scrollbar{display:none}
+.node{flex:none;display:flex;flex-direction:column;gap:1px;padding:5px 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);cursor:pointer;text-align:left}
+.node b{font-family:var(--f-mono);font-weight:500;font-size:12px}
+.node span{font-size:11px;color:var(--ink2)}
+.node:hover,.node.on{border-color:var(--accent);background:var(--accent-soft)}
+.link{flex:none;font-family:var(--f-mono);font-size:10px;color:var(--ink3);display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.link i{font-style:normal;color:var(--ink2);font-size:13px}
+
+/* side sheet */
+#sheet{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:340px;max-height:calc(100% - var(--dockh,130px) - 56px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;overflow:hidden}
+#sheet .grip{display:none}
+#sheetBody{overflow-y:auto;padding:16px 16px 14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.crumb{font-family:var(--f-mono);font-size:11px;color:var(--ink3);display:flex;gap:6px;flex-wrap:wrap}
+.crumb button{background:none;border:0;padding:0;color:var(--ink2);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.pname{font-family:var(--f-disp);font-weight:600;font-size:24px;line-height:1.1;margin:0;text-wrap:balance}
+.pen{font-family:var(--f-mono);font-size:11.5px;color:var(--ink2);margin-top:3px}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11.5px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--ink2);background:var(--panel2)}
+.tag.where{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.role{line-height:1.7;color:var(--ink);margin:0}
+.specs{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:12.5px;border-top:1px solid var(--line);padding-top:10px}
+.specs dt{color:var(--ink3);white-space:nowrap}
+.specs dd{margin:0;font-family:var(--f-mono);font-size:12px;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.tip{font-size:12.5px;line-height:1.65;padding:9px 11px;border-radius:8px;background:var(--panel2);border-left:3px solid var(--accent);color:var(--ink)}
+.tip b{color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:6px 11px;cursor:pointer;font-size:12.5px}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
+.guide{margin:0;padding-left:18px;line-height:1.75;color:var(--ink2);font-size:13px}
+.guide b{color:var(--ink);font-weight:500}
+.grp{display:flex;flex-direction:column;gap:2px}
+.grp h3{margin:6px 0 4px;font-family:var(--f-mono);font-weight:500;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.pl{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;border:0;background:none;cursor:pointer;text-align:left;font-size:13px;width:100%}
+.pl:hover{background:var(--accent-soft)}
+.pl .sw{width:10px;height:10px;border-radius:3px;flex:none;border:1px solid var(--line)}
+.pl small{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--ink3)}
+details.wires summary{cursor:pointer;font-size:13px;padding:5px 8px;color:var(--ink2)}
+
+/* dock */
+#dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(900px,calc(100vw - 32px));display:flex;flex-direction:column;gap:8px;padding:10px 14px}
+.drow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#play{width:38px;height:38px;border-radius:50%;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;display:grid;place-items:center;flex:none}
+#play svg{width:16px;height:16px}
+.slide{flex:1 1 260px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.slide .lab{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink2)}
+.slide .lab b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:4px 0}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:none}
+.seg button{border:0;background:none;padding:7px 10px;cursor:pointer;font-size:12.5px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:500}
+.tog{display:flex;gap:6px;flex-wrap:wrap}
+.tg{border:1px solid var(--line);background:none;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:var(--ink2)}
+.tg.on{color:var(--ink);border-color:var(--accent);background:var(--accent-soft)}
+.dlab{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+
+/* signal ticker */
+#ticker{display:flex;gap:14px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
+.tkl{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+#tkCard .card3{width:200px;background:var(--panel2)}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.step{font-size:11.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink3)}
+.step.on{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+.bytes{display:flex;gap:3px;flex-wrap:wrap;align-items:center;font-family:var(--f-mono);font-size:12px}
+.bytes .who{font-family:var(--f-body);font-size:12px;color:var(--ink2);margin-right:6px}
+.by{padding:1px 4px;border-radius:3px;color:var(--ink3);border:1px solid transparent}
+.by.lit{color:var(--ink);border-color:var(--line);background:var(--panel2)}
+.by.cur{color:var(--accent-ink);background:var(--accent)}
+.note{font-size:11.5px;color:var(--ink3)}
+
+/* legend */
+#legend{position:fixed;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--ink2);padding:9px 11px}
+#legend div{display:flex;align-items:center;gap:7px}
+#legend i{width:16px;height:4px;border-radius:2px;display:inline-block}
+
+/* 3D labels */
+.l3{pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;transition:opacity .2s}
+.l3 .t{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-radius:6px;padding:3px 7px;display:flex;flex-direction:column;align-items:center;white-space:nowrap}
+.l3 .t b{font-size:12px;font-weight:500}
+.l3 .t small{font-family:var(--f-mono);font-size:10px;color:var(--ink2)}
+.l3 .stem{width:1px;height:22px;background:var(--ink3)}
+.l3 .dot{width:5px;height:5px;border-radius:50%;background:var(--ink);margin-top:-1px}
+.l3.sel .t{border-color:var(--accent);background:var(--accent)}
+.l3.sel .t b,.l3.sel .t small{color:var(--accent-ink)}
+.l3.sel .stem,.l3.sel .dot{background:var(--accent)}
+.card3{pointer-events:none;width:auto;padding:8px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--accent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:11.5px}
+.card3 .h{font-family:var(--f-mono);font-size:10.5px;color:var(--ink2);letter-spacing:.06em}
+.card3 svg{display:block;width:100%;height:auto;margin:4px 0}
+.card3 svg text{font-family:var(--f-mono);font-size:9px;fill:var(--ink2)}
+.card3 .gate{fill:none;stroke:var(--off);stroke-width:1.4;stroke-dasharray:3 2}
+.card3 .gate.on{stroke:var(--accent);stroke-dasharray:none;fill:var(--accent-soft)}
+.card3 .wire{stroke:var(--off);stroke-width:1.2;fill:none}
+.card3 .wire.on{stroke:var(--accent)}
+.card3 .st{font-weight:500}
+
+#tip{position:fixed;pointer-events:none;padding:4px 8px;border-radius:6px;background:var(--ink);color:var(--bg);font-size:12px;white-space:nowrap;transform:translate(12px,12px);z-index:5}
+#loading{position:fixed;inset:0;display:grid;place-items:center;color:var(--ink2);font-size:13px;pointer-events:none}
+
+@media (max-width:1100px){#legend{display:none}}
+@media (max-width:760px){
+  h1{font-size:23px}
+  #head{gap:6px}
+  #sheet{top:auto;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;bottom:calc(var(--dockh,150px) + 22px + env(safe-area-inset-bottom,0px));max-height:44%}
+  #sheet .grip{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border:0;background:none;cursor:pointer;font-size:13px;width:100%}
+  #sheet .grip b{font-weight:500}
+  #sheet:not(.open) #sheetBody{display:none}
+  #sheetBody{padding-top:4px}
+  #dock{padding:9px 11px}
+  .seg button{padding:6px 8px}
+  .slide{flex-basis:200px}
+  #tkCard{display:none}
+  #tnote{display:none}
+  #dock .drow{gap:8px}
+}
+@media (prefers-reduced-motion:reduce){.l3{transition:none}}
+</style>
+
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">正在载入 three.js（需要联网）…</div>
+
+<header id="head">
+  <div class="eyebrow">whj_MCU · XL330 通信实验</div>
+  <h1>信号链<em>爆炸图</em></h1>
+  <nav id="chain" aria-label="信号链">
+    <button class="node" data-p="mcu"><b>KM1M7C</b><span>MCU · 3.3V</span></button>
+    <div class="link">TX RX DIR<i>⇄</i></div>
+    <button class="node" data-p="txb"><b>TXB0104</b><span>3.3V ⇄ 5V</span></button>
+    <div class="link">5V<i>⇄</i></div>
+    <button class="node" data-p="u241"><b>74LVC2G241</b><span>TX+RX → DATA</span></button>
+    <div class="link">DATA<i>⇄</i></div>
+    <button class="node" data-p="servo"><b>XL330</b><span>舵机</span></button>
+  </nav>
+</header>
+
+<aside id="sheet" class="glass" aria-label="零件说明">
+  <button class="grip" id="grip"><b id="gripName">零件说明</b><span id="gripArrow">展开</span></button>
+  <div id="sheetBody"></div>
+</aside>
+
+<div id="legend" class="glass" aria-label="线色">
+  <div><i style="background:var(--w5)"></i>5V</div>
+  <div><i style="background:var(--wg)"></i>GND</div>
+  <div><i style="background:var(--w33)"></i>3.3V</div>
+  <div><i style="background:var(--wdir)"></i>DIR 方向</div>
+  <div><i style="background:var(--wrx)"></i>RX 接收</div>
+  <div><i style="background:var(--wtx)"></i>TX 发送</div>
+  <div><i style="background:var(--wdata)"></i>DATA</div>
+</div>
+
+<section id="dock" class="glass" aria-label="控制">
+  <div class="drow">
+    <button id="play" aria-label="爆炸 / 装配"><svg viewBox="0 0 16 16" id="playIco"><path d="M3 2l11 6-11 6z" fill="currentColor"/></svg></button>
+    <div class="slide">
+      <div class="lab"><span>装配</span><b id="tval">0%</b><span>爆炸</span></div>
+      <input id="tSlider" type="range" min="0" max="1000" value="0" aria-label="爆炸程度">
+    </div>
+    <div class="slide" style="flex-basis:150px">
+      <div class="lab"><span>舵机合上</span><b id="sval">0%</b><span>拆开</span></div>
+      <input id="sSlider" type="range" min="0" max="1000" value="0" aria-label="舵机内部">
+    </div>
+  </div>
+  <div class="drow">
+    <span class="dlab">信号</span>
+    <div class="seg" id="sig">
+      <button data-m="off" class="on">关</button>
+      <button data-m="tx">发送</button>
+      <button data-m="rx">接收</button>
+      <button data-m="auto">一问一答</button>
+    </div>
+    <div class="tog">
+      <button class="tg on" id="tLabels">标注</button>
+      <button class="tg" id="tXray">透视</button>
+      <button class="tg" id="tSpin">自转</button>
+      <button class="tg" id="tReset">重置视角</button>
+    </div>
+  </div>
+  <div id="ticker" hidden>
+    <div class="tkl">
+      <div class="steps" id="steps"></div>
+      <div class="bytes" id="bytes"></div>
+      <div class="note" id="tnote"></div>
+    </div>
+    <div id="tkCard"></div>
+  </div>
+</section>
+<div id="tip" hidden></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/* ============================================================
+   坐标：单位 mm。面包板顶面 y = 0，桌面 y = TABLE。
+   x 沿列（第 1→28 列），z 沿行（L 在远处 −z，A 在近处 +z），
+   和 docs/breadboard 的布局图同一个方向。
+   ============================================================ */
+const P = 2.54, TABLE = -8.9, UP_DZ = -40.64;
+const cx = c => (c - 14.5) * P;
+const ROWS = 'ABCDEFGHIJKL';
+const rowZ = r => { const i = ROWS.indexOf(r); return i < 6 ? 16.51 - i * P : -3.81 - (i - 6) * P; };
+const RAILX = {V1N:-44.45, V1P:-41.91, V3P:41.91, V3N:44.45};
+const V = (x,y,z) => new THREE.Vector3(x,y,z);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function holeXZ(s){
+  if (s.includes(':')) { const [k,r] = s.split(':'); return [RAILX[k], rowZ(r)]; }
+  const m = s.match(/^(\d+)([A-L])$/); return [cx(+m[1]), rowZ(m[2])];
+}
+
+/* ---------------- 零件说明（面板里显示的文字） ---------------- */
+const INFO = {
+  bb_shell:{n:'面包板',en:'Solderless breadboard',cat:'底座',where:'所有元件插在这里',
+    role:'免焊接的插线板。每个孔下面藏着金属簧片，插进同一组孔的引脚就被连在一起。这块板 28 列：每列槽下方 A–F 一组、槽上方 G–L 一组；左右的 V1、V3 是电源轨，整条相通。本实验只用下半块。',
+    specs:[['孔距','2.54 mm（0.1 英寸）'],['中间槽宽','7.62 mm（0.3 英寸）'],['触点电流','约 1 A'],['V1','外部 5V（+ 靠里，− 靠外）'],['V3 −','MCU 的 GND']],
+    tip:'<b>记号</b>：“6下” = 第 6 列槽下方任一孔，“6上” = 槽上方。舵机的大电流不要走面包板，触点只扛得住约 1 A。'},
+  bb_strips:{n:'金属簧片',en:'Contact clips',cat:'底座内部',where:'面包板里面',
+    role:'每组孔下面是一片弯成夹子形状的金属弹片，夹住插进来的引脚。同一片上的孔电气相通，不同片之间互不相通。槽两边各一片，所以跨在槽上的芯片两排引脚不会短路。电源轨下面是一整条长簧片。',
+    specs:[['每片连通','6 个孔（A–F 或 G–L）'],['电源轨','整条相通（上电前用万用表实测确认）']],
+    tip:'<b>为什么要懂这个</b>：tools/check_wiring.py 就是按这条规则把每个孔归到网络，再和电路图比对。打开“信号”动画，可以看到电流从导线钻进簧片、再走到芯片引脚。'},
+  bb_backing:{n:'背胶',en:'Adhesive backing',cat:'底座',where:'面包板底面',
+    role:'双面胶加离型纸，把簧片封在板子里，也能把面包板粘在底板上。撕掉后簧片可能掉出来，别撕。',specs:[]},
+
+  txb:{n:'TXB0104 电平转换模块',en:'Adafruit 1875 · TXB0104 breakout',cat:'电平转换',where:'MCU（3.3V）⇄ 241（5V）',
+    role:'把 3.3V 的信号翻译成 5V，反方向也行。A 侧（LV = 3.3V）接 MCU，B 侧（HV = 5V）接 241。它会自动判断方向：哪一侧先推动信号，就往另一侧传，所以不需要方向脚。本实验用 3 个通道：A1/B1 = DIR，A2/B2 = RX，A3/B3 = TX；A4 空着，B4 接地防止悬空。',
+    specs:[['通道','4（用了 3 个）'],['LV（A 侧）','1.2–3.6 V，这里 3.3 V'],['HV（B 侧）','1.65–5.5 V，这里 5 V'],['外接上下拉','≥ 50 kΩ（所以 R2、R3 用 100k）'],['位置','第 14–19 列，E 行 + G 行']],
+    tip:'<b>踩过的坑</b>：R3 曾插成 10k，DIR = 1 时 B1 只有约 3.5V。TXB 的输出内部串了约 4 kΩ，外接电阻太小会把电平拉低。换成 100k 后实测 4.77V。'},
+  txb_hdr:{n:'模块排针',en:'2 × 6 pin header',cat:'电平转换',where:'模块 ↔ 面包板',
+    role:'两排各 6 针：E 行从左到右 LV A1 A2 A3 A4 OE，G 行 HV B1 B2 B3 B4 GND。两排相距 0.4 英寸（10.16 mm），正好跨在槽上，两侧互不相通。',
+    specs:[['LV','14E'],['HV','14G'],['OE','19E（不接）']]},
+  txb_pcb:{n:'模块电路板',en:'Breakout PCB',cat:'电平转换',where:'TXB0104 模块',
+    role:'把芯片细小的引脚引到 2.54 mm 排针上，方便插面包板。板上已经焊好去耦电容和 OE 上拉电阻，所以一通电芯片就工作。',specs:[]},
+  txb_chip:{n:'TXB0104 芯片',en:'TI TXB0104 · 4-bit bidirectional translator',cat:'电平转换',where:'模块正中间',
+    role:'每个通道里是一对方向相反的“弱驱动”缓冲器，再加一个边沿加速电路：检测到电平跳变时短暂地用力推一下，平时只用很弱的力保持电平。所以它能自动判断方向，但怕外面接的电阻太小（会被电阻拉住）。',
+    specs:[['类型','双向、自动方向'],['方向脚','没有'],['使能','OE 高电平工作']],
+    tip:'<b>依赖的假设</b>：两侧都只有“弱”负载。像 I²C 那种外接 4.7k 上拉的总线就不适合用 TXB，要用 TXS 系列。'},
+  txb_smd:{n:'板载电容和电阻',en:'C1 C2 0.1µF · R1 10k (OE pull-up)',cat:'电平转换',where:'TXB0104 模块',
+    role:'两个 0.1µF 去耦电容分别贴在 LV、HV 旁边：芯片切换时瞬间要电流，电容就近供应，避免电源抖动。10k 电阻把 OE（输出使能）上拉到 LV，芯片就一直开着，所以 OE 脚不用接。',specs:[]},
+
+  u241:{n:'74LVC2G241 转接板',en:'SN74LVC2G241 · dual 3-state buffer',cat:'收发合成',where:'TXB 的 5V 侧 ⇄ 舵机 DATA',
+    role:'XL330 只有一根 DATA 线，收和发共用（叫“半双工”）。241 里有两个三态缓冲器：2 号门把 TX 送到 DATA，1 号门把 DATA 送回 RX。DIR 同时接两个门的使能脚，而 1OE 低电平有效、2OE 高电平有效，所以任何时刻只开一个门：DIR = 1 发送，DIR = 0 接收。',
+    specs:[['供电','5 V（8 脚）'],['1 · 1OE','DIR（低有效）'],['2 · 1A','DATA 输入'],['3 · 2Y','DATA 输出'],['4','GND'],['5 · 2A','TX 输入'],['6 · 1Y','RX 输出'],['7 · 2OE','DIR（高有效）'],['8','VCC 5V'],['位置','第 6–9 列，1 脚在 6F']],
+    tip:'<b>三态</b>：除了高、低电平，还有“高阻”，相当于这根输出断开了。关掉的门输出高阻，就不会和另一个门抢 DATA。打开“信号”动画看两个门怎么轮流开。'},
+  u241_hdr:{n:'转接板排针',en:'2 × 4 pin header',cat:'收发合成',where:'转接板 ↔ 面包板',
+    role:'两排各 4 针，行距 0.3 英寸（7.62 mm），跨在槽上：F 行是 1–4 脚，G 行是 8–5 脚。',specs:[['1 脚','6F（圆点）']]},
+  u241_pcb:{n:'SOP→DIP 转接板',en:'8-pin adapter PCB',cat:'收发合成',where:'241 芯片下面',
+    role:'241 的贴片封装只有约 2 mm 见方，引脚间距 0.5 mm，插不进面包板。转接板把每个脚用铜线引到 2.54 mm 的排针孔上。',
+    specs:[['DCU','VSSOP-8，0.5 mm 间距'],['DCT','SM8，0.65 mm 间距']],tip:'按芯片后缀买对应的转接板。'},
+  u241_chip:{n:'SN74LVC2G241 芯片',en:'Dual buffer, 3-state outputs',cat:'收发合成',where:'转接板正中',
+    role:'芯片里就是两个带使能的缓冲器（门）。使能有效时，输出 = 输入；使能无效时，输出变成高阻。1 号门使能低有效（1OE 上面有一横），2 号门使能高有效，这个“一正一反”正是只用一根 DIR 就能切换收发的关键。',
+    specs:[['门数','2'],['输出','三态'],['供电','1.65–5.5 V']]},
+
+  R1:{n:'R1 · 10 kΩ',en:'DATA pull-up · 4G ↔ 4F',cat:'电阻',where:'DATA 线',
+    role:'收发切换的瞬间没人驱动 DATA，上拉到 5V 让它保持高电平。串口空闲时就是高电平，所以这样舵机不会误以为收到了数据。',
+    specs:[['色环','棕 黑 橙 金'],['读法','1 0 × 10³ Ω，±5%'],['孔位','4G ↔ 4F（跨槽）']]},
+  R2:{n:'R2 · 100 kΩ',en:'RX pull-up · 14K ↔ 16K',cat:'电阻',where:'TXB B2（RX）',
+    role:'发送时 1Y 关闭，RX 这根线没人驱动。上拉让它停在高电平，MCU 就不会收到乱码。间距小，所以竖着插。',
+    specs:[['色环','棕 黑 黄 金'],['读法','1 0 × 10⁴ Ω，±5%'],['孔位','14K ↔ 16K（竖插）']]},
+  R3:{n:'R3 · 100 kΩ',en:'DIR pull-down · 6B ↔ 9B',cat:'电阻',where:'DIR（241 的 1OE）',
+    role:'MCU 没上电或复位时，TXB 的输出是高阻，DIR 没人管。下拉让 DIR 默认是 0，241 保持接收，不会去抢 DATA 总线。',
+    specs:[['色环','棕 黑 黄 金'],['孔位','6B ↔ 9B']],tip:'必须 ≥ 50 kΩ，见 TXB0104 的“踩过的坑”。'},
+  C2:{n:'C2 · 0.1 µF',en:'Decoupling · 11G ↔ 11F',cat:'电容',where:'5V 中转 ↔ GND 中转',
+    role:'跨过槽，接在第 11 列的 5V 中转和 GND 中转之间，给 241 和 TXB 的 5V 侧就近供电，滤掉高频毛刺。',
+    specs:[['标记','104 = 10 × 10⁴ pF = 0.1 µF'],['类型','瓷片，无极性']]},
+  C5:{n:'C5 · 0.1 µF',en:'Servo decoupling · 2E ↔ 3E',cat:'电容',where:'舵机 VDD ↔ GND',
+    role:'ROBOTIS 推荐电路在舵机电源上并联一个电解电容和一个 0.1 µF 瓷片电容。这个是瓷片电容，电解电容就是 V1 上的 C4。',specs:[['标记','104'],['类型','瓷片，无极性']]},
+  C4:{n:'C4 · 100 µF / 16 V',en:'Bulk electrolytic · V1+ / V1−',cat:'电容',where:'外部 5V 电源轨',
+    role:'储能电容。舵机启动或堵转时电流突然变大，电解电容先顶上，减少 5V 掉压，避免通信中断。',
+    specs:[['极性','有；长脚 +，白条一侧 −'],['耐压','16 V'],['位置','+ 脚 V1 +，− 脚 V1 −']],tip:'<b>接反会损坏</b>，插之前看清白色条纹那一侧是负极。'},
+  K3:{n:'舵机排针',en:'3-pin header · 2B 3B 4B',cat:'连接',where:'面包板 ↔ 舵机线',
+    role:'3 针排针插在 2B、3B、4B，舵机线的杜邦头插在上面：2 = GND，3 = VDD（5V），4 = DATA。',specs:[['2B','GND'],['3B','VDD 5V'],['4B','DATA']]},
+  servo_cable:{n:'舵机线',en:'JST EH 3P ↔ Dupont',cat:'连接',where:'面包板 ↔ XL330',
+    role:'3 根线：GND、VDD、DATA。舵机那头是 JST EH 3P，面包板这头是杜邦母头。DATA 一根线既发又收。',specs:[['线色','以实物为准']]},
+
+  mcu:{n:'KM1M7C 开发板',en:'MCU board · 3.3 V IO（外形为示意）',cat:'MCU',where:'信号链起点',
+    role:'单片机（MCU）：一颗芯片里装着 CPU、Flash（存程序）、RAM 和外设。这里用到三样：UART 串口（TX 发、RX 收）、一个 GPIO 当 DIR、3.3V 电源输出。它的 IO 是 3.3V，所以需要 TXB0104 转成 5V。',
+    specs:[['IO 电平','3.3 V'],['串口','57600 bps，8N1'],['3.3V','→ 14B'],['DIR（GPIO）','→ 15B'],['RX','← 16B'],['TX','→ 17B'],['GND','→ V3 −'],['5V 脚','不接']],
+    tip:'<b>最关键的一行代码</b>：发完最后一个字节，要等“发送完成”（TC）标志再把 DIR 切回 0。等“发送缓冲空”（TXE）会把 CRC 的最后一个字节截掉，舵机就不回应。'},
+  mcu_chip:{n:'MCU 芯片',en:'KM1M7C（封装为示意）',cat:'MCU',where:'开发板正中',
+    role:'CPU 执行你写的程序；UART 外设负责把一个字节拆成一位一位的电平发出去：起始位（0）+ 8 位数据（低位先发）+ 停止位（1），这就是 8N1。57600 bps 时每一位约 17.4 µs。',specs:[]},
+  ext:{n:'外部 5V 电源',en:'5 V ≥ 2 A · DC jack + screw terminal',cat:'电源',where:'V1 电源轨',
+    role:'给舵机、241、TXB 的 B 侧供电。MCU 的 5V 脚不用，保证 5V 只有一个来源。所有 GND 必须连在一起（靠 P1 那根长线）。',
+    specs:[['电压','5 V'],['电流','≥ 2 A（一个舵机）'],['多个舵机','约 个数 × 1.5 A，电源别走面包板']]},
+
+  servo:{n:'XL330 舵机',en:'ROBOTIS DYNAMIXEL XL330-M288',cat:'执行器',where:'信号链终点',
+    role:'智能舵机：里面有电机、减速齿轮、位置传感器和自己的一颗小 MCU。你通过 DATA 线发 Protocol 2.0 数据包（ping、读、写），它在约 0.5 ms 后回答。点“舵机拆开”滑块看内部。',
+    specs:[['出厂','ID 1 · 57600 bps · Protocol 2.0'],['型号号','1200（ping 应答里的 B0 04）'],['尺寸','20 × 34 × 26 mm'],['位置传感器','非接触绝对编码器，12 位'],['供电','5 V']],
+    tip:'舵机内部布局是示意，帮助理解结构，不是真实拆机尺寸。'},
+  servo_horn:{n:'输出舵盘',en:'Output horn',cat:'舵机内部',where:'最后一级齿轮的输出轴',
+    role:'舵机转动就是它在转。上面的孔用来装连杆或轮子。目标位置写到地址 116，0–4095 对应 0–360°。',specs:[]},
+  servo_top:{n:'上盖',en:'Top case',cat:'舵机内部',where:'外壳',role:'盖住齿轮组，中间的孔让输出轴伸出来。',specs:[]},
+  servo_frame:{n:'中壳',en:'Middle case',cat:'舵机内部',where:'外壳',role:'舵机的骨架，电机和齿轮轴都固定在它上面。后面开口露出两个接口。',specs:[]},
+  servo_bottom:{n:'底盖',en:'Bottom case',cat:'舵机内部',where:'外壳',role:'托住控制板，四颗长螺丝从这里穿过整个舵机。',specs:[]},
+  servo_screws:{n:'长螺丝 × 4',en:'Case screws',cat:'舵机内部',where:'外壳四角',role:'把底盖、中壳、上盖锁在一起。',specs:[]},
+  servo_motor:{n:'直流电机',en:'DC motor',cat:'舵机内部',where:'中壳里',
+    role:'通电就转的小电机，转得快但力气小。舵机里的 MCU 用 PWM（快速开关电压）控制它的转速和方向。顶上的小齿轮叫“电机小齿轮”。',specs:[]},
+  servo_g:{n:'减速齿轮组',en:'Reduction gear train',cat:'舵机内部',where:'电机 → 输出轴',
+    role:'一级级“小齿轮带大齿轮”：每一级转速降低、扭矩放大。几级乘起来，电机的高速小力变成输出轴的低速大力。XL330-M288 型号里的 288 就是总减速比约 288:1。',
+    specs:[['材料','工程塑料'],['总减速比','约 288 : 1']],tip:'图里的齿数是示意。'},
+  servo_magnet:{n:'磁铁',en:'Diametric magnet',cat:'舵机内部',where:'输出轴底端',
+    role:'一块径向充磁的小磁铁（一半 N、一半 S），跟着输出轴一起转。正下方的编码器芯片测它的磁场方向。',specs:[]},
+  servo_pcb:{n:'控制电路板',en:'Controller PCB',cat:'舵机内部',where:'舵机底部',
+    role:'舵机自己的“大脑”：一颗 MCU 解析数据包，跑位置闭环（PID：比较目标位置和当前位置，算出该给电机多大的力）；电机驱动芯片（H 桥）负责大电流；后面两个 3 针接口，一个进线，一个串下一个舵机（菊花链）。',specs:[['接口','JST EH 3P × 2']]},
+  servo_enc:{n:'磁编码器芯片',en:'Contactless absolute encoder',cat:'舵机内部',where:'输出轴正下方',
+    role:'测上面磁铁的磁场方向，就知道输出轴转到了哪个角度。12 位 = 4096 个刻度（0–4095 对应 0–360°）。不接触，不会磨损。读当前位置就是读地址 132。',specs:[['分辨率','12 位，约 0.088°']]},
+};
+const GEARNOTE = ['第 1 级：电机小齿轮带这个大齿轮。','第 2 级。','第 3 级。','第 4 级：输出齿轮，和输出轴、磁铁装在一起。'];
+
+/* 接线清单：和 docs/breadboard/xl330_breadboard.html 同一份数据 */
+const WIRES = [
+  ['E1','EXT:+','V1P:A','5','V1 +（靠里那列）从此是外部 5V'],
+  ['E2','EXT:-','V1N:A','g','V1 −（靠外那列）是 GND'],
+  ['M2','MCU:GND','V3N:A','g','V3 −（靠外那列）是 MCU 的 GND，V3 + 不用'],
+  ['P1','V1N:L','V3N:L','g','把两条 GND 连通。外部电源的地和 MCU 的地必须接在一起，这根线从板子上方绕过去',{h:9,lat:[0,0,-30]}],
+  ['P2','V1N:D','2D','g','舵机 GND'],
+  ['P3','V1P:C','3C','5','舵机 VDD = 外部 5V'],
+  ['P4','V1P:K','6K','5','241 的 8 脚 VCC = 5V',{h:6}],
+  ['P5','6J','11J','5','把 5V 引到第 11 列槽上方（中转）',{h:4.5}],
+  ['P6','9D','11D','g','把 241 的 GND（4 脚）引到第 11 列槽下方（中转）'],
+  ['P7','11I','14I','5','HV（VB）= 5V，从中转点引过来'],
+  ['P8','11C','V3N:C','g','GND 中转点接 V3 −（MCU 的地），241 的地也由此接通',{h:5}],
+  ['P9','19K','V3N:K','g','模块 GND 接 V3 −',{h:5}],
+  ['P10','18I','19I','g','B4 不用，接旁边的 GND；A4 空着'],
+  ['M1','MCU:3V3','14B','33','LV（VA）= 3.3V，MCU 的 3.3V 直接插到这里'],
+  ['S1','MCU:DIR','15B','dir','A1，方向控制 DIR'],
+  ['S2','16B','MCU:RX','rx','A2，接收'],
+  ['S3','MCU:TX','17B','tx','A3，发送'],
+  ['S4','15L','7L','dir','B1 → 241 的 2OE（7 脚）',{h:7,lat:[0,0,-1.5]}],
+  ['S5','8L','16L','rx','241 的 1Y（6 脚）→ B2，接收',{h:9.5,lat:[0,0,-3.5]}],
+  ['S6','17L','9L','tx','B3 → 241 的 2A（5 脚），发送',{h:12,lat:[0,0,-5.5]}],
+  ['S7','7K','6D','dir','2OE（7 脚）→ 1OE（1 脚）。2OE 高电平有效、1OE 低电平有效，所以 DIR = 1 发送，DIR = 0 接收',{h:12,lat:[-6,0,0]}],
+  ['P11','V1P:J','4J','5','把 5V 引到第 4 列槽上方，给 R1 用',{h:5}],
+  ['S8','8C','4C','data','241 的 2Y（3 脚）→ DATA'],
+  ['S9','7A','4A','data','DATA → 241 的 1A（2 脚）'],
+];
+const WCOL = {'5':0xd9423b,'g':0x26292d,'33':0xee7d22,'dir':0x2f6fd6,'rx':0x2b9a4a,'tx':0xcaa21a,'data':0x8b4fd0};
+const WNAME = {'5':'5V','g':'GND','33':'3.3V','dir':'DIR 方向','rx':'RX 接收','tx':'TX 发送','data':'DATA'};
+const WCSS = {'5':'var(--w5)','g':'var(--wg)','33':'var(--w33)','dir':'var(--wdir)','rx':'var(--wrx)','tx':'var(--wtx)','data':'var(--wdata)'};
+
+/* ---------------- 渲染器、场景、灯光 ---------------- */
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+const css = new CSS2DRenderer({element: document.getElementById('labels')});
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.62;
+
+const camera = new THREE.PerspectiveCamera(32, 1, 1, 3000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.minDistance = 25; controls.maxDistance = 1400;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+const key = new THREE.DirectionalLight(0xfff3e4, 1.7);
+key.position.set(70, 170, 110); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, {left:-150, right:150, top:150, bottom:-150, near:10, far:500});
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.25;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xdbe6ff, 0.45); fill.position.set(-140, 80, -60); scene.add(fill);
+
+const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1400,1400), new THREE.ShadowMaterial({opacity:0.2}));
+shadowCatcher.rotation.x = -Math.PI/2; shadowCatcher.position.y = TABLE - 0.02; shadowCatcher.receiveShadow = true;
+scene.add(shadowCatcher);
+let grid = null;
+function buildGrid(){
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+  const c = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#888';
+  grid = new THREE.GridHelper(1000, 100, c, c);
+  grid.material.transparent = true; grid.material.opacity = 0.55; grid.material.depthWrite = false;
+  grid.position.y = TABLE - 0.05; scene.add(grid);
+}
+
+/* ---------------- 材质 ---------------- */
+const std = (color, o={}) => new THREE.MeshStandardMaterial({color, roughness:0.5, ...o});
+const M = {
+  abs: std(0xf1efe8,{roughness:0.62}),
+  gold: std(0xdcb24c,{metalness:1, roughness:0.26}),
+  tin: std(0xcfd2d6,{metalness:1, roughness:0.3}),
+  strip: std(0xc6bba4,{metalness:1, roughness:0.36}),
+  black: std(0x1b1c1f,{roughness:0.55}),
+  chip: std(0x18191b,{roughness:0.4}),
+  paper: std(0xe7e1d0,{roughness:0.9}),
+  brass: std(0xc9a35a,{metalness:1, roughness:0.3}),
+  steel: std(0xb8bcc2,{metalness:1, roughness:0.22}),
+  pom: std(0xf0eee8,{roughness:0.42}),
+  cream: std(0xe8dcc0,{roughness:0.45}),
+  case: std(0x2a2c31,{roughness:0.48}),
+  case2: std(0x202226,{roughness:0.42}),
+  whiteP: std(0xf3f1ea,{roughness:0.5}),
+  green: std(0x2ea15a,{roughness:0.4}),
+  greenTerm: std(0x2f8f55,{roughness:0.5}),
+  resBody: std(0xd8c49c,{roughness:0.55}),
+  disc: std(0xcf8a3c,{roughness:0.5}),
+  capSleeve: std(0x1d2230,{roughness:0.4}),
+  alu: std(0xd5d8dc,{metalness:1, roughness:0.35}),
+  magN: std(0xc8463d,{roughness:0.35, metalness:0.2}),
+  magS: std(0x3e66b8,{roughness:0.35, metalness:0.2}),
+  ledG: std(0x2bd46a,{emissive:0x2bd46a, emissiveIntensity:0.9}),
+  ledR: std(0xff4a3a,{emissive:0xff3a2a, emissiveIntensity:0.6}),
+};
+const pcbMat = (map, color) => new THREE.MeshPhysicalMaterial({map, color:0xffffff, roughness:0.38, clearcoat:0.6, clearcoatRoughness:0.25});
+const pcbSide = color => new THREE.MeshPhysicalMaterial({color, roughness:0.5, clearcoat:0.3});
+const wireMat = hex => new THREE.MeshPhysicalMaterial({color:hex, roughness:0.38, clearcoat:0.5, clearcoatRoughness:0.3});
+
+function canvasTex(wmm, hmm, ppm, draw){
+  const c = document.createElement('canvas');
+  c.width = Math.round(wmm*ppm); c.height = Math.round(hmm*ppm);
+  const g = c.getContext('2d'); g.scale(ppm, ppm); draw(g, wmm, hmm);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}
+const MONO = '"IBM Plex Mono", ui-monospace, monospace';
+const SANS = '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+function txt(g, s, x, y, size, color, align='center', font=MONO, weight=500){
+  g.font = `${weight} ${size}px ${font}`; g.fillStyle = color; g.textAlign = align; g.textBaseline = 'middle'; g.fillText(s, x, y);
+}
+
+/* ---------------- 几何小工具 ---------------- */
+function mesh(geo, mat, x=0, y=0, z=0){ const m = new THREE.Mesh(geo, mat); m.position.set(x,y,z); m.castShadow = true; m.receiveShadow = true; return m; }
+function boxB(w,h,d,mat,x,yb,z){ return mesh(new THREE.BoxGeometry(w,h,d), mat, x, yb+h/2, z); }
+function cylB(r,h,mat,x,yb,z,seg=24){ return mesh(new THREE.CylinderGeometry(r,r,h,seg), mat, x, yb+h/2, z); }
+function polyTube(pts, r, mat, seg=6){
+  const path = new THREE.CurvePath();
+  for (let i=0;i<pts.length-1;i++) path.add(new THREE.LineCurve3(pts[i], pts[i+1]));
+  return mesh(new THREE.TubeGeometry(path, pts.length*10, r, seg, false), mat);
+}
+const alignY = (m, dir) => m.quaternion.setFromUnitVectors(V(0,1,0), dir.clone().normalize());
+
+/* ---------------- 零件登记表 ---------------- */
+const parts = new Map(); const order = [];
+function part(id, parent, o={}){
+  const g = new THREE.Group(); g.name = id;
+  (parent ? parts.get(parent).group : scene).add(g);
+  const p = {id, parent, group:g, children:[], home:V(...(o.pos||[0,0,0])), off:V(...(o.off||[0,0,0])), d:o.d||0, axis:o.axis||'t',
+    info:o.info||INFO[id], label:o.label, swatch:o.swatch, dyn:!!o.dyn, prog:0, meshes:[], flags:{sel:false,hov:false}, glow:null, glowK:0};
+  g.position.copy(p.home);
+  if (parent) parts.get(parent).children.push(p);
+  parts.set(id, p); order.push(p); return p;
+}
+const anchors = {};
+function anchor(name, parentGroup, x, y, z){ const o = new THREE.Object3D(); o.position.set(x,y,z); parentGroup.add(o); anchors[name] = o; return o; }
+const wp = name => anchors[name].getWorldPosition(new THREE.Vector3());
+
+/* ============================================================
+   面包板
+   ============================================================ */
+const BX0 = -49, BX1 = 68, BZ0 = -62.5, BZ1 = 22.5, BW = BX1-BX0, BD = BZ1-BZ0;
+function lowerHoles(fn){ for (let c=1;c<=28;c++) for (const r of ROWS) fn(cx(c), rowZ(r), c, r); }
+function buildBoard(){
+  const shell = part('bb_shell', null, {label:['面包板','28 列 · 只用下半块']});
+  const body = mesh(new RoundedBoxGeometry(BW, 8.5, BD, 3, 1.4), M.abs, (BX0+BX1)/2, -4.25, (BZ0+BZ1)/2);
+  shell.group.add(body);
+  const draw = bump => (g) => {
+    const X = x => x-BX0, Z = z => z-BZ0;
+    g.fillStyle = bump ? '#ffffff' : '#efede6'; g.fillRect(0,0,BW,BD);
+    const groove = (x1,x2,z1,z2) => { g.fillStyle = bump ? '#5a5a5a' : '#d9d5cb'; g.fillRect(X(x1),Z(z1),x2-x1,z2-z1); };
+    groove(cx(1)-3, cx(28)+3, -1.3, 1.3);
+    groove(cx(1)-3, cx(28)+3, UP_DZ-1.3, UP_DZ+1.3);
+    groove(cx(1)-3, cx(28)+3, -22.6, -18.0);
+    groove(36.4, 37.6, -60, 20);
+    const hole = (x,z) => {
+      if (bump) { g.fillStyle = '#000'; g.fillRect(X(x)-0.6, Z(z)-0.6, 1.2, 1.2); return; }
+      g.fillStyle = '#d2cec4'; g.fillRect(X(x)-0.85, Z(z)-0.85, 1.7, 1.7);
+      g.fillStyle = '#2b2a27'; g.fillRect(X(x)-0.55, Z(z)-0.55, 1.1, 1.1);
+    };
+    for (const dz of [0, UP_DZ]) {
+      for (let c=1;c<=28;c++) for (const r of ROWS) hole(cx(c), rowZ(r)+dz);
+      for (const k in RAILX) for (const r of ROWS) hole(RAILX[k], rowZ(r)+dz);
+    }
+    for (let j=0;j<6;j++) for (let n=0;n<30;n++) hole(51.7+j*P, 16.51-n*P);
+    if (bump) return;
+    const gray = '#8f8b82';
+    for (const dz of [0, UP_DZ]) {
+      for (let c=1;c<=28;c++){ txt(g, String(c), X(cx(c)), Z(rowZ('L')+dz)-2.6, 1.35, gray); txt(g, String(c), X(cx(c)), Z(rowZ('A')+dz)+2.6, 1.35, gray); }
+      for (const r of ROWS) txt(g, r, X(cx(1))-3.4, Z(rowZ(r)+dz), 1.35, gray);
+      const zl = rowZ('L')+dz-1.2, za = rowZ('A')+dz+1.2;
+      g.lineWidth = 0.35;
+      g.strokeStyle = dz ? '#e3a7a2' : '#cf3b33'; g.beginPath(); g.moveTo(X(-40.3), Z(zl)); g.lineTo(X(-40.3), Z(za)); g.moveTo(X(40.3), Z(zl)); g.lineTo(X(40.3), Z(za)); g.stroke();
+      g.strokeStyle = dz ? '#b5b2aa' : '#3b3d40'; g.beginPath(); g.moveTo(X(-46.2), Z(zl)); g.lineTo(X(-46.2), Z(za)); g.moveTo(X(46.2), Z(zl)); g.lineTo(X(46.2), Z(za)); g.stroke();
+      txt(g, dz ? 'V2' : 'V1', X(-43.2), Z(dz-0.2), 2.2, dz ? '#e3a7a2' : '#cf3b33', 'center', MONO, 600);
+      txt(g, dz ? 'V4' : 'V3', X(43.2), Z(dz-0.2), 2.2, dz ? '#e3a7a2' : '#cf3b33', 'center', MONO, 600);
+      txt(g, '+', X(-41.91), Z(za)+1.6, 1.8, '#cf3b33'); txt(g, '−', X(-44.45), Z(za)+1.6, 1.8, '#3b3d40');
+      txt(g, '+', X(41.91), Z(za)+1.6, 1.8, '#cf3b33'); txt(g, '−', X(44.45), Z(za)+1.6, 1.8, '#3b3d40');
+    }
+    for (let n=0;n<30;n++) txt(g, String(n+1), X(49.6), Z(16.51-n*P), 1.2, gray);
+    'abcdef'.split('').forEach((l,j)=>txt(g, l, X(51.7+j*P), Z(19.6), 1.2, gray));
+  };
+  const map = canvasTex(BW, BD, 12, draw(false));
+  const bump = canvasTex(BW, BD, 12, draw(true)); bump.colorSpace = THREE.NoColorSpace;
+  const inset = 1.5;
+  for (const t of [map,bump]) { t.repeat.set((BW-2*inset)/BW, (BD-2*inset)/BD); t.offset.set(inset/BW, inset/BD); }
+  const top = mesh(new THREE.PlaneGeometry(BW-2*inset, BD-2*inset), new THREE.MeshStandardMaterial({map, bumpMap:bump, bumpScale:2.2, roughness:0.62}), (BX0+BX1)/2, 0.015, (BZ0+BZ1)/2);
+  top.rotation.x = -Math.PI/2; top.castShadow = false; shell.group.add(top);
+
+  // 金属簧片（实例化）
+  const strips = part('bb_strips', null, {off:[0,-17,0], d:0.08, label:['金属簧片','同一组孔相通']});
+  const sg = new THREE.BoxGeometry(1.5, 1.6, 6*P-0.4);
+  const groups = [];
+  for (const dz of [0, UP_DZ]) for (let c=1;c<=28;c++) for (const zc of [10.16,-10.16]) groups.push([cx(c), zc+dz]);
+  const im = new THREE.InstancedMesh(sg, M.strip, groups.length);
+  const mtx = new THREE.Matrix4();
+  groups.forEach(([x,z],i)=>{ mtx.makeTranslation(x, -5.6, z); im.setMatrixAt(i, mtx); });
+  im.castShadow = true; strips.group.add(im);
+  const fingerG = new THREE.BoxGeometry(1.7, 3.2, 0.3);
+  const fingers = [];
+  for (const dz of [0, UP_DZ]) for (let c=1;c<=28;c++) for (const r of ROWS) fingers.push([cx(c), rowZ(r)+dz]);
+  const fm = new THREE.InstancedMesh(fingerG, M.strip, fingers.length*2);
+  fingers.forEach(([x,z],i)=>{ mtx.makeTranslation(x,-3.4,z-0.62); fm.setMatrixAt(i*2,mtx); mtx.makeTranslation(x,-3.4,z+0.62); fm.setMatrixAt(i*2+1,mtx); });
+  fm.castShadow = true; strips.group.add(fm);
+  for (const dz of [0, UP_DZ]) for (const k in RAILX) strips.group.add(boxB(1.3, 1.6, 34.5, M.strip, RAILX[k], -6.4, dz));
+  for (const n of ['A','B','C','D','E','F','G','H','I','J','K','L']) for (let c=1;c<=28;c++) anchor('s'+c+n, strips.group, cx(c), -4.6, rowZ(n));
+  for (const k in RAILX) for (const n of ROWS) anchor('s'+k+':'+n, strips.group, RAILX[k], -4.6, rowZ(n));
+
+  const back = part('bb_backing', null, {off:[0,-32,0], d:0.14});
+  back.group.add(boxB(BW-1, 0.35, BD-1, M.paper, (BX0+BX1)/2, TABLE+0.02, (BZ0+BZ1)/2));
+}
+
+/* 排针：pts 为同一排的 [x,z] */
+function header(group, pts, {yb=-5.6, yt=7.2, sy=0, sh=2.5}={}){
+  for (const [x,z] of pts) group.add(boxB(0.64, yt-yb, 0.64, M.gold, x, yb, z));
+  const xs = pts.map(p=>p[0]), zs = pts.map(p=>p[1]);
+  const w = Math.max(...xs)-Math.min(...xs)+P, d = Math.max(...zs)-Math.min(...zs)+P;
+  group.add(boxB(w-0.1, sh, d-0.1, M.black, (Math.max(...xs)+Math.min(...xs))/2, sy, (Math.max(...zs)+Math.min(...zs))/2));
+}
+/* 贴片芯片：本体 + 两侧鸥翼脚 + 顶面丝印 */
+function smdChip(group, {x,y,z,w,d,h=0.9,n,pitch,side='z',mark,markSize=0.7}){
+  const top = canvasTex(w, d, 60, (g)=>{ g.fillStyle='#1a1b1d'; g.fillRect(0,0,w,d); txt(g, mark, w/2, d/2, markSize, '#9a9da2'); g.fillStyle='#55585c'; g.beginPath(); g.arc(0.55,d-0.55,0.22,0,7); g.fill(); });
+  const mats = [M.chip, M.chip, new THREE.MeshStandardMaterial({map:top, roughness:0.45}), M.chip, M.chip, M.chip];
+  group.add(mesh(new THREE.BoxGeometry(w,h,d), mats, x, y+h/2, z));
+  const legL = 0.55;
+  for (let i=0;i<n;i++){
+    const o = (i-(n-1)/2)*pitch;
+    for (const s of [-1,1]){
+      const lx = side==='z' ? x+o : x+s*(w/2+legL/2-0.05);
+      const lz = side==='z' ? z+s*(d/2+legL/2-0.05) : z+o;
+      group.add(boxB(side==='z'?pitch*0.45:legL, 0.14, side==='z'?legL:pitch*0.45, M.tin, lx, y, lz));
+    }
+  }
+}
+
+/* ============================================================
+   74LVC2G241 转接板（第 6–9 列，F/G 行）
+   ============================================================ */
+function build241(){
+  const m = part('u241', null, {off:[0,20,0], d:0.28, label:['74LVC2G241','TX + RX → DATA']});
+  const hdr = part('u241_hdr', 'u241');
+  const F = [6,7,8,9].map(c=>[cx(c), rowZ('F')]), G = [6,7,8,9].map(c=>[cx(c), rowZ('G')]);
+  header(hdr.group, F); header(hdr.group, G);
+  const pcb = part('u241_pcb', 'u241', {off:[0,6,0], d:0.5});
+  const x0 = cx(6)-1.6, x1 = cx(9)+1.6, z0 = rowZ('G')-1.6, z1 = rowZ('F')+1.6, w = x1-x0, dd = z1-z0;
+  const chipX = (x0+x1)/2, chipZ = 0;
+  const tex = canvasTex(w, dd, 48, (g)=>{
+    g.fillStyle = '#1e5a3c'; g.fillRect(0,0,w,dd);
+    const pads = [...F, ...G].map(([x,z])=>[x-x0, z-z0]);
+    const chipPins = [];
+    for (let i=0;i<4;i++){ const px = chipX-x0+(i-1.5)*0.5; chipPins.push([px, chipZ-z0+1.3], [px, chipZ-z0-1.3]); }
+    g.strokeStyle = '#3f8a5f'; g.lineWidth = 0.32;
+    F.forEach(([x,z],i)=>{ g.beginPath(); g.moveTo(x-x0,z-z0); g.lineTo(chipPins[i*2][0], z-z0-1.2); g.lineTo(chipPins[i*2][0], chipPins[i*2][1]); g.stroke(); });
+    G.forEach(([x,z],i)=>{ g.beginPath(); g.moveTo(x-x0,z-z0); g.lineTo(chipPins[i*2+1][0], z-z0+1.2); g.lineTo(chipPins[i*2+1][0], chipPins[i*2+1][1]); g.stroke(); });
+    pads.forEach(([x,z])=>{ g.fillStyle='#d9b45a'; g.beginPath(); g.arc(x,z,0.85,0,7); g.fill(); g.fillStyle='#14211a'; g.beginPath(); g.arc(x,z,0.42,0,7); g.fill(); });
+    ['1','2','3','4'].forEach((s,i)=>txt(g, s, F[i][0]-x0, F[i][1]-z0-1.45, 0.75, '#e9f0ea'));
+    ['8','7','6','5'].forEach((s,i)=>txt(g, s, G[i][0]-x0, G[i][1]-z0+1.45, 0.75, '#e9f0ea'));
+    g.fillStyle = '#e9f0ea'; g.beginPath(); g.arc(F[0][0]-x0-1.1, F[0][1]-z0+0.2, 0.3, 0, 7); g.fill();
+    g.strokeStyle = '#e9f0ea'; g.lineWidth = 0.12; g.strokeRect(0.25,0.25,w-0.5,dd-0.5);
+  });
+  const side = pcbSide(0x1e5a3c);
+  pcb.group.add(mesh(new THREE.BoxGeometry(w,1.6,dd), [side,side,pcbMat(tex),side,side,side], chipX, 2.5+0.8, (z0+z1)/2));
+  const chip = part('u241_chip', 'u241', {off:[0,7,0], d:0.6, label:['SN74LVC2G241','两个三态门']});
+  smdChip(chip.group, {x:chipX, y:4.1, z:chipZ, w:2.3, d:2.0, h:0.85, n:4, pitch:0.5, side:'z', mark:'C41', markSize:0.6});
+  // 信号锚点
+  for (const [c,r] of [[6,'F'],[7,'F'],[8,'F'],[9,'F'],[6,'G'],[7,'G'],[8,'G'],[9,'G']]){
+    anchor('h241_'+c+r, hdr.group, cx(c), 2.6, rowZ(r));
+    anchor('p241_'+c+r, pcb.group, cx(c), 4.2, rowZ(r));
+  }
+  anchor('c241', chip.group, chipX, 5.1, chipZ);
+  anchor('card241', chip.group, chipX, 6, chipZ);
+}
+
+/* ============================================================
+   TXB0104 模块（第 14–19 列，E/G 行）
+   ============================================================ */
+function buildTXB(){
+  const m = part('txb', null, {off:[0,24,0], d:0.3, label:['TXB0104 模块','3.3V ⇄ 5V']});
+  const hdr = part('txb_hdr', 'txb');
+  const cols = [14,15,16,17,18,19];
+  const E = cols.map(c=>[cx(c), rowZ('E')]), G = cols.map(c=>[cx(c), rowZ('G')]);
+  header(hdr.group, E); header(hdr.group, G);
+  const pcb = part('txb_pcb', 'txb', {off:[0,6,0], d:0.5});
+  const x0 = cx(14)-1.8, x1 = cx(19)+1.8, z0 = rowZ('G')-1.9, z1 = rowZ('E')+1.9, w = x1-x0, dd = z1-z0;
+  const chipX = cx(16.5), chipZ = 1.27;
+  const tex = canvasTex(w, dd, 40, (g)=>{
+    g.fillStyle = '#1b356b'; g.fillRect(0,0,w,dd);
+    g.strokeStyle = '#2f5294'; g.lineWidth = 0.3;
+    cols.forEach((c,i)=>{ if (i===0||i===5) return; const x = cx(c)-x0;
+      g.beginPath(); g.moveTo(x, rowZ('E')-z0); g.lineTo(chipX-x0+(i-2.5)*0.65, chipZ-z0+2.4); g.stroke();
+      g.beginPath(); g.moveTo(x, rowZ('G')-z0); g.lineTo(chipX-x0+(i-2.5)*0.65, chipZ-z0-2.4); g.stroke(); });
+    [...E,...G].forEach(([x,z])=>{ g.fillStyle='#d9b45a'; g.beginPath(); g.arc(x-x0,z-z0,0.9,0,7); g.fill(); g.fillStyle='#0f1726'; g.beginPath(); g.arc(x-x0,z-z0,0.45,0,7); g.fill(); });
+    ['LV','A1','A2','A3','A4','OE'].forEach((s,i)=>txt(g, s, E[i][0]-x0, E[i][1]-z0-1.6, 0.8, '#eef2fa'));
+    ['HV','B1','B2','B3','B4','GND'].forEach((s,i)=>txt(g, s, G[i][0]-x0, G[i][1]-z0+1.6, 0.8, '#eef2fa'));
+    txt(g, 'TXB0104', w-3.0, dd/2+0.2, 0.75, '#eef2fa', 'center', MONO, 600);
+    g.strokeStyle = '#eef2fa'; g.lineWidth = 0.12; g.strokeRect(0.25,0.25,w-0.5,dd-0.5);
+  });
+  const side = pcbSide(0x1b356b);
+  pcb.group.add(mesh(new THREE.BoxGeometry(w,1.6,dd), [side,side,pcbMat(tex),side,side,side], (x0+x1)/2, 3.3, (z0+z1)/2));
+  const smd = part('txb_smd', 'txb', {off:[0,10,0], d:0.6});
+  const capM = std(0xb99a6b,{roughness:0.5});
+  for (const [x,z] of [[cx(14)+0.9, 3.4],[cx(14)+0.9,-0.9]]){
+    smd.group.add(boxB(0.8,0.8,1.6,capM,x,4.1,z));
+    smd.group.add(boxB(0.82,0.82,0.3,M.tin,x,4.09,z-0.75)); smd.group.add(boxB(0.82,0.82,0.3,M.tin,x,4.09,z+0.75));
+  }
+  smd.group.add(boxB(1.6,0.5,0.8,M.chip,cx(18)+0.2,4.1,3.6));
+  const chip = part('txb_chip', 'txb', {off:[0,8,0], d:0.6, label:['TXB0104 芯片','自动方向']});
+  smdChip(chip.group, {x:chipX, y:4.1, z:chipZ, w:5.0, d:4.4, h:1.0, n:7, pitch:0.65, side:'z', mark:'YE04', markSize:0.9});
+  for (const c of cols) for (const r of ['E','G']){
+    anchor('htxb_'+c+r, hdr.group, cx(c), 2.6, rowZ(r));
+    anchor('ptxb_'+c+r, pcb.group, cx(c), 4.2, rowZ(r));
+  }
+  anchor('ctxb', chip.group, chipX, 5.2, chipZ);
+}
+
+/* ============================================================
+   电阻、电容、排针
+   ============================================================ */
+const RES_PROFILE = [[0,-3.15],[0.85,-3.15],[1.12,-2.8],[1.15,-2.0],[0.98,-1.55],[0.98,1.55],[1.15,2.0],[1.12,2.8],[0.85,3.15],[0,3.15]].map(([r,y])=>new THREE.Vector2(r,y));
+const BAND = {brown:0x6b3a1e, black:0x161616, orange:0xe0731d, yellow:0xe6c329, gold:0xc9a24a};
+function resistor(id, a, b, bands, {stand=false, off=16, d=0.22}={}){
+  const p = part(id, null, {off:[0,off,0], d, label:[id, INFO[id].n.split('· ')[1]]});
+  const A = V(...holeXZ(a).flatMap((v,i)=>i? [0,v]:[v])), B = V(...holeXZ(b).flatMap((v,i)=>i? [0,v]:[v]));
+  const lead = 0.3;
+  const body = new THREE.Group();
+  body.add(mesh(new THREE.LatheGeometry(RES_PROFILE, 28), M.resBody));
+  const bandPos = [[-2.4,1.18],[-1.15,1.01],[-0.35,1.01],[2.4,1.18]];
+  bands.forEach((c,i)=>{ const [y,r] = bandPos[i]; body.add(mesh(new THREE.CylinderGeometry(r,r,0.5,28), std(BAND[c],{roughness:0.5, metalness:c==='gold'?0.8:0}), 0, y, 0)); });
+  if (!stand){
+    const dir = B.clone().sub(A).normalize(), mid = A.clone().add(B).multiplyScalar(0.5), yb = 2.0;
+    body.position.copy(mid).setY(yb); alignY(body, dir); p.group.add(body);
+    const e1 = mid.clone().addScaledVector(dir,-3.0).setY(yb), e2 = mid.clone().addScaledVector(dir,3.0).setY(yb);
+    p.group.add(polyTube([A.clone().setY(-5.6), A.clone().setY(yb), e1], lead, M.tin));
+    p.group.add(polyTube([B.clone().setY(-5.6), B.clone().setY(yb), e2], lead, M.tin));
+  } else {
+    body.position.copy(A).setY(1.4+3.15); p.group.add(body);
+    p.group.add(polyTube([A.clone().setY(-5.6), A.clone().setY(1.5)], lead, M.tin));
+    p.group.add(polyTube([A.clone().setY(7.6), A.clone().setY(9.2), B.clone().setY(9.2), B.clone().setY(-5.6)], lead, M.tin));
+  }
+}
+function discCap(id, a, b, {off=16, d=0.22}={}){
+  const p = part(id, null, {off:[0,off,0], d, label:[id, '0.1 µF']});
+  const A = V(holeXZ(a)[0],0,holeXZ(a)[1]), B = V(holeXZ(b)[0],0,holeXZ(b)[1]);
+  const dir = B.clone().sub(A).normalize(), mid = A.clone().add(B).multiplyScalar(0.5);
+  const n = dir.clone().cross(V(0,1,0)).normalize();
+  const c = mid.clone().setY(5.0);
+  const disc = mesh(new THREE.SphereGeometry(1, 32, 20), M.disc); disc.scale.set(2.5,2.5,0.85);
+  disc.position.copy(c); disc.quaternion.setFromUnitVectors(V(0,0,1), n); p.group.add(disc);
+  const lab = canvasTex(3,1.6,90,(g)=>txt(g,'104',1.5,0.8,1.1,'#3a2410','center',MONO,600));
+  for (const s of [1,-1]){
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.3), new THREE.MeshStandardMaterial({map:lab, transparent:true, roughness:0.6}));
+    pl.position.copy(c).addScaledVector(n, s*0.88); pl.quaternion.setFromUnitVectors(V(0,0,1), n.clone().multiplyScalar(s)); p.group.add(pl);
+  }
+  for (const [H,s] of [[A,-1],[B,1]]){
+    const top = mid.clone().addScaledVector(dir, s*1.25).setY(2.9);
+    p.group.add(polyTube([H.clone().setY(-5.6), H.clone().setY(1.0), top], 0.28, M.tin));
+  }
+}
+function electrolytic(){
+  const id='C4', p = part(id, null, {off:[0,22,0], d:0.2, label:['C4','100 µF']});
+  const A = V(RAILX.V1P,0,rowZ('B')), B = V(RAILX.V1N,0,rowZ('B'));
+  const mid = A.clone().add(B).multiplyScalar(0.5);
+  const sleeve = canvasTex(40, 11, 24, (g)=>{
+    g.fillStyle='#1d2230'; g.fillRect(0,0,40,11);
+    g.fillStyle='#c9ced8'; g.fillRect(27,0,6,11);
+    for (let i=0;i<4;i++) txt(g,'−',30,1.8+i*2.5,2,'#1d2230','center',MONO,600);
+    txt(g,'100µF',12,4,2.1,'#d8dce4','center',MONO,600); txt(g,'16V',12,7,2.0,'#d8dce4');
+  });
+  // CylinderGeometry 的 u=0.75 在 −x 一侧：让白条朝向 V1 −
+  sleeve.wrapS = THREE.RepeatWrapping; sleeve.offset.x = 0.75 - 30/40;
+  const can = mesh(new THREE.CylinderGeometry(3.15,3.15,11,40,1,true), new THREE.MeshPhysicalMaterial({map:sleeve, roughness:0.35, clearcoat:0.6}), mid.x, 1.6+5.5, mid.z);
+  p.group.add(can);
+  const topT = canvasTex(6.3,6.3,60,(g)=>{ g.fillStyle='#cfd3d8'; g.beginPath(); g.arc(3.15,3.15,3.1,0,7); g.fill(); g.strokeStyle='#8f959d'; g.lineWidth=0.18; g.beginPath(); g.moveTo(3.15,1.2); g.lineTo(3.15,5.1); g.moveTo(1.4,2.2); g.lineTo(4.9,4.1); g.moveTo(1.4,4.1); g.lineTo(4.9,2.2); g.stroke(); });
+  const capTop = mesh(new THREE.CircleGeometry(3.12, 40), new THREE.MeshStandardMaterial({map:topT, metalness:0.9, roughness:0.35}), mid.x, 12.62, mid.z); capTop.rotation.x = -Math.PI/2; p.group.add(capTop);
+  p.group.add(cylB(3.05, 0.4, M.black, mid.x, 1.3, mid.z, 40));
+  p.group.add(polyTube([A.clone().setY(-5.6), A.clone().setY(1.4)], 0.28, M.tin));
+  p.group.add(polyTube([B.clone().setY(-5.6), B.clone().setY(1.4)], 0.28, M.tin));
+}
+function buildK3(){
+  const p = part('K3', null, {off:[0,14,0], d:0.18, label:['舵机排针','GND · VDD · DATA']});
+  const pts = [2,3,4].map(c=>[cx(c), rowZ('B')]);
+  header(p.group, pts, {yt:8.4});
+  p.group.add(boxB(3*P-0.1, 8.4, P-0.1, M.black, cx(3), 3.0, rowZ('B')));
+  for (const c of [2,3,4]) anchor('k3_'+c, p.group, cx(c), 11.6, rowZ('B'));
+  anchor('k3pin_4', p.group, cx(4), 2.6, rowZ('B'));
+}
+
+/* ============================================================
+   导线
+   ============================================================ */
+const MCU_PIN = {'3V3':14,'DIR':15,'RX':16,'TX':17,'GND':32};
+const MCU_Z = 39;
+const wires = {};
+function endPoint(s){
+  if (s.startsWith('MCU:')) return {dev:'mcu', anchor:'mcu_'+s.slice(4)};
+  if (s.startsWith('EXT:')) return {dev:'ext', anchor:'ext_'+s.slice(4)};
+  const [x,z] = holeXZ(s); return {hole:s, pos:V(x,0.9,z)};
+}
+function buildWires(){
+  WIRES.forEach(([id,a,b,col,note,o={}],i)=>{
+    const A = endPoint(a), B = endPoint(b);
+    const dyn = !!(A.dev || B.dev);
+    const lift = col==='g'||col==='5' ? 30 : 34 + (i%3)*2;
+    const p = part(id, null, {off:[0, dyn?26:lift, 0], d:dyn?0.3:0.38+(i%4)*0.02, dyn, swatch:WCSS[col],
+      info:{n:`${id} · ${WNAME[col]}`, en:`${a.replace('EXT:','电源 ').replace('MCU:','MCU ')} → ${b.replace('MCU:','MCU ')}`, cat:'导线', where:WNAME[col], role:note, specs:[['起点',a],['终点',b],['线色',WNAME[col]]]}});
+    const mat = wireMat(WCOL[col]);
+    const w = {id, a:A, b:B, col, mat, part:p, o, dyn, curve:null, meshes:{}};
+    wires[id] = w;
+    if (!dyn){
+      w.curve = wireCurve(A.pos, B.pos, o);
+      p.group.add(mesh(new THREE.TubeGeometry(w.curve, 64, 0.48, 8, false), mat));
+      for (const E of [A.pos,B.pos]) p.group.add(cylB(0.3, 6.6, M.tin, E.x, -5.7, E.z, 10));
+    } else {
+      w.meshes.tube = mesh(new THREE.BufferGeometry(), mat); p.group.add(w.meshes.tube);
+      const hole = A.hole ? A : B;
+      w.meshes.pin = mesh(new THREE.CylinderGeometry(0.3,0.3,6.6,10), M.tin); p.group.add(w.meshes.pin);
+      w.holePos = hole.pos;
+      w.dev = (A.dev ? A : B);
+      if (w.dev.dev === 'mcu'){ w.meshes.housing = mesh(new THREE.BoxGeometry(2.45,8.4,2.45), mat); p.group.add(w.meshes.housing); }
+    }
+  });
+}
+function wireCurve(a, b, o={}){
+  const h = o.h ?? Math.min(14, Math.max(2.8, a.distanceTo(b)*0.3));
+  const lat = V(...(o.lat||[0,0,0]));
+  return new THREE.CubicBezierCurve3(a.clone(), a.clone().add(V(0,h,0)).add(lat), b.clone().add(V(0,h,0)).add(lat), b.clone());
+}
+function rebuildDynamic(){
+  for (const id in wires){
+    const w = wires[id]; if (!w.dyn) continue;
+    const lift = w.part.off.clone().multiplyScalar(w.part.prog);
+    const H = w.holePos.clone().add(lift);
+    const D = wp(w.dev.anchor);
+    const holeFirst = !!w.a.hole;
+    const s = holeFirst ? H : D, e = holeFirst ? D : H;
+    const up = (pt, isHole) => isHole ? V(0, 10, 0) : V(0, 12, 0);
+    w.curve = new THREE.CubicBezierCurve3(s, s.clone().add(up(s,holeFirst)), e.clone().add(up(e,!holeFirst)), e);
+    w.meshes.tube.geometry.dispose(); w.meshes.tube.geometry = new THREE.TubeGeometry(w.curve, 56, 0.48, 8, false);
+    w.meshes.pin.position.set(H.x, H.y-0.9-3.3, H.z);
+    if (w.meshes.housing) w.meshes.housing.position.set(D.x, D.y-4.2, D.z);
+  }
+  // 舵机线：三根并排
+  const s = wp('k3_3'), e = wp('servo_plug');
+  const c = new THREE.CubicBezierCurve3(s, s.clone().add(V(0,18,0)), e.clone().add(V(0,3,-22)), e);
+  servoCable.curve = c;
+  const side = V(1,0,0);
+  [-1,0,1].forEach((k,i)=>{
+    const pts = c.getPoints(60).map((p,j)=>p.clone().addScaledVector(side, k*0.95*(1-0.55*j/60)));
+    const cc = new THREE.CatmullRomCurve3(pts);
+    const m = servoCable.tubes[i]; m.geometry.dispose(); m.geometry = new THREE.TubeGeometry(cc, 60, 0.45, 8, false);
+  });
+}
+
+/* ============================================================
+   KM1M7C 开发板（外形为示意，引脚按接线清单）
+   ============================================================ */
+function buildMCU(){
+  const p = part('mcu', null, {off:[2,4,26], d:0.0, label:['KM1M7C','MCU · 3.3V IO']});
+  const x0 = -6, x1 = 48, z0 = 37, z1 = 63, w = x1-x0, dd = z1-z0, yb = TABLE+4;
+  for (const [x,z] of [[x0+2.5,z0+2.5],[x1-2.5,z0+2.5],[x0+2.5,z1-2.5],[x1-2.5,z1-2.5]]) p.group.add(mesh(new THREE.CylinderGeometry(1.4,1.4,4,6), M.brass, x, TABLE+2, z));
+  const tex = canvasTex(w, dd, 24, (g)=>{
+    g.fillStyle='#17191c'; g.fillRect(0,0,w,dd);
+    g.strokeStyle='#2c3036'; g.lineWidth=0.3;
+    for (let i=0;i<14;i++){ g.beginPath(); g.moveTo(4+i*3.2, 4); g.lineTo(6+i*3.0, 9); g.lineTo(26, 14); g.stroke(); }
+    for (let c=13;c<=32;c++){ const x = cx(c)-x0; g.fillStyle='#c9a24a'; g.fillRect(x-0.9, MCU_Z-z0-0.9, 1.8, 1.8); }
+    const lbl = {14:'3V3',15:'DIR',16:'RX',17:'TX',32:'GND'};
+    for (const c in lbl) txt(g, lbl[c], cx(+c)-x0, MCU_Z-z0+2.4, 1.05, '#e9ecef', 'center', MONO, 600);
+    g.strokeStyle='#e9ecef'; g.lineWidth=0.15; g.beginPath(); g.moveTo(cx(16)-x0-1, MCU_Z-z0+3.6); g.lineTo(cx(17)-x0+1, MCU_Z-z0+3.6); g.stroke();
+    txt(g, 'UART', (cx(16)+cx(17))/2-x0, MCU_Z-z0+4.6, 0.85, '#9aa2ab');
+    txt(g, 'KM1M7C', 6.5, dd-4.5, 2.6, '#e9ecef', 'left', MONO, 600);
+    txt(g, '开发板（外形示意）', 6.5, dd-1.9, 1.5, '#9aa2ab', 'left', SANS, 400);
+    g.strokeStyle='#e9ecef'; g.lineWidth=0.15; g.strokeRect(0.6,0.6,w-1.2,dd-1.2);
+  });
+  const side = pcbSide(0x17191c);
+  p.group.add(mesh(new THREE.BoxGeometry(w,1.6,dd), [side,side,pcbMat(tex),side,side,side], (x0+x1)/2, yb+0.8, (z0+z1)/2));
+  const top = yb+1.6;
+  const pins = []; for (let c=13;c<=32;c++) pins.push([cx(c), MCU_Z]);
+  header(p.group, pins, {yb:yb-1.5, yt:top+8.0, sy:top, sh:2.5});
+  for (const k in MCU_PIN){ anchor('mcu_'+k, p.group, cx(MCU_PIN[k]), top+2.5+8.4, MCU_Z); anchor('mcuB_'+k, p.group, cx(MCU_PIN[k]), top+0.4, MCU_Z); }
+  const chip = part('mcu_chip', 'mcu', {off:[0,8,0], d:0.5});
+  const cxp = 24, czp = 51;
+  const ct = canvasTex(10,10,50,(g)=>{ g.fillStyle='#1a1b1d'; g.fillRect(0,0,10,10); txt(g,'KM1M7C',5,4.3,1.3,'#a3a7ad','center',MONO,600); txt(g,'ARM · 3.3V',5,6.1,0.8,'#7d8187'); g.fillStyle='#4a4d52'; g.beginPath(); g.arc(1.3,8.7,0.45,0,7); g.fill(); });
+  chip.group.add(mesh(new THREE.BoxGeometry(10,1.4,10), [M.chip,M.chip,new THREE.MeshStandardMaterial({map:ct,roughness:0.45}),M.chip,M.chip,M.chip], cxp, top+0.7, czp));
+  const legG = new THREE.BoxGeometry(0.22,0.15,1.0), legs = new THREE.InstancedMesh(legG, M.tin, 64), mt = new THREE.Matrix4(), q = new THREE.Quaternion();
+  for (let s=0;s<4;s++) for (let i=0;i<16;i++){
+    const o = (i-7.5)*0.5, a = s*Math.PI/2; q.setFromAxisAngle(V(0,1,0), a);
+    const v = V(o, top+0.08, 5.45).applyQuaternion(q).add(V(cxp,0,czp)); v.y = top+0.08;
+    mt.compose(v, q, V(1,1,1)); legs.setMatrixAt(s*16+i, mt);
+  }
+  chip.group.add(legs);
+  anchor('mcu_core', chip.group, cxp, top+1.6, czp);
+  p.group.add(boxB(7.6,2.9,5.6,M.steel,8,top,z1-2.4));
+  p.group.add(boxB(6,1.2,3.4,M.black,8,top+0.2,z1-5));
+  const xtal = mesh(new THREE.CapsuleGeometry(1.7,7.5,6,16), M.steel, 38, top+1.7, 52); xtal.rotation.z = Math.PI/2; p.group.add(xtal);
+  p.group.add(boxB(6,3.4,6,M.black,40,top,58)); p.group.add(cylB(1.7,1.3,std(0x2b2d31),40,top+3.4,58));
+  p.group.add(boxB(6.5,1.6,3.5,M.chip,12,top,46)); p.group.add(boxB(3,0.4,1.8,M.tin,12,top,48.5));
+  p.group.add(boxB(1.6,0.6,0.8,M.ledG,2,top,56)); p.group.add(boxB(1.6,0.6,0.8,M.ledR,2,top,58.5));
+}
+
+/* ============================================================
+   外部 5V 电源（DC 座 + 接线端子）
+   ============================================================ */
+function buildExt(){
+  const p = part('ext', null, {off:[-20,4,16], d:0.0, label:['外部 5V','≥ 2 A']});
+  const x0=-73, x1=-51, z0=31, z1=49, yb=TABLE+3.2;
+  for (const [x,z] of [[x0+2,z0+2],[x1-2,z0+2],[x0+2,z1-2],[x1-2,z1-2]]) p.group.add(mesh(new THREE.CylinderGeometry(1.2,1.2,3.2,6), M.brass, x, TABLE+1.6, z));
+  const tex = canvasTex(22,18,30,(g)=>{ g.fillStyle='#173b2a'; g.fillRect(0,0,22,18); txt(g,'+',13.5,7.5,2,'#eef2ec','center',MONO,600); txt(g,'−',8.5,7.5,2,'#eef2ec','center',MONO,600); txt(g,'DC 5V ≥2A',11,10.4,1.3,'#eef2ec'); g.strokeStyle='#eef2ec'; g.lineWidth=0.15; g.strokeRect(0.5,0.5,21,17); });
+  const side = pcbSide(0x173b2a);
+  p.group.add(mesh(new THREE.BoxGeometry(22,1.6,18),[side,side,pcbMat(tex),side,side,side],-62,yb+0.8,40));
+  const top = yb+1.6;
+  p.group.add(boxB(11,8,8.5,M.greenTerm,-62,top,35.3));
+  for (const x of [-64.5,-59.5]){ p.group.add(cylB(1.4,0.6,M.tin,x,top+8,37)); p.group.add(boxB(2.6,0.5,0.4,std(0x6b6f74,{metalness:1,roughness:.4}),x,top+8.5,37)); }
+  p.group.add(boxB(9,11,13,M.black,-62,top,45));
+  const jack = mesh(new THREE.CylinderGeometry(2.6,2.6,0.4,24), std(0x050505), -62, top+5.5, 51.6); jack.rotation.x = Math.PI/2; p.group.add(jack);
+  anchor('ext_+', p.group, -59.5, top+6.5, 33.2); anchor('ext_-', p.group, -64.5, top+6.5, 33.2);
+}
+
+/* ============================================================
+   XL330 舵机（外壳 + 内部，内部布局为示意）
+   本地坐标：底面中心为原点，x 宽 20，z 长 34，y 高 26；
+   齿轮轴：电机 M z=−10，中间轴 A z=−2，输出轴 O z=+6。
+   ============================================================ */
+function gearGeo(r, teeth, thick, hole=0.55){
+  const s = new THREE.Shape(), rr = r-0.42, ro = r+0.38, da = Math.PI*2/teeth;
+  for (let i=0;i<teeth;i++){
+    const a = i*da, pts = [[rr,a],[rr,a+da*0.18],[ro,a+da*0.34],[ro,a+da*0.62],[rr,a+da*0.78]];
+    pts.forEach(([R,t],k)=>{ const x = R*Math.cos(t), y = R*Math.sin(t); (i===0&&k===0) ? s.moveTo(x,y) : s.lineTo(x,y); });
+  }
+  s.closePath();
+  const h = new THREE.Path(); h.absarc(0,0,hole,0,Math.PI*2,true); s.holes.push(h);
+  const g = new THREE.ExtrudeGeometry(s, {depth:thick, bevelEnabled:false, curveSegments:6});
+  g.rotateX(-Math.PI/2); return g;
+}
+const servoCable = {tubes:[], curve:null};
+function buildServo(){
+  const S = part('servo', null, {pos:[-24,TABLE,64], off:[-8,4,30], d:0.0, label:['XL330 舵机','DYNAMIXEL · ID 1']});
+  const sub = (id, off, d, label) => part(id, 'servo', {off:[0,off,0], d, axis:'s', label});
+  const W = 20, L = 34;
+  const bottom = sub('servo_bottom', -20, 0.25, ['底盖','']);
+  bottom.group.add(mesh(new RoundedBoxGeometry(W,2.5,L,2,1.2), M.case2, 0,1.25,0));
+  const screws = sub('servo_screws', -36, 0.35);
+  for (const [x,z] of [[-8.4,-15.4],[8.4,-15.4],[-8.4,15.4],[8.4,15.4]]){ screws.group.add(cylB(0.75,24.5,M.steel,x,0.2,z,12)); screws.group.add(cylB(1.5,0.9,M.steel,x,-0.6,z,16)); }
+  const pcb = sub('servo_pcb', -10, 0.15, ['控制电路板','MCU + 电机驱动']);
+  const ptex = canvasTex(17,30,30,(g)=>{ g.fillStyle='#1d5a3a'; g.fillRect(0,0,17,30); g.strokeStyle='#3c8a5c'; g.lineWidth=0.3; for (let i=0;i<9;i++){ g.beginPath(); g.moveTo(2+i*1.6,26); g.lineTo(3+i*1.3,18); g.lineTo(8.5,10); g.stroke(); } txt(g,'MCU',4.5,24.6,1.1,'#e9f0ea'); txt(g,'H-BRIDGE',12.3,24.6,0.9,'#e9f0ea'); txt(g,'ENC',8.5,8.6,1.0,'#e9f0ea'); });
+  const pside = pcbSide(0x1d5a3a);
+  pcb.group.add(mesh(new THREE.BoxGeometry(17,1,30), [pside,pside,pcbMat(ptex),pside,pside,pside], 0, 3.0, -0.5));
+  pcb.group.add(boxB(4,0.8,4,M.chip,-4,3.5,-7)); pcb.group.add(boxB(3,0.8,3,M.chip,4,3.5,-7));
+  for (const x of [-4.2, 4.2]){ pcb.group.add(boxB(7.6,5.4,4.6,M.whiteP,x,3.5,-13.4)); for (let k=-1;k<=1;k++) pcb.group.add(boxB(0.5,4,0.5,M.brass,x+k*2.5,4.2,-13.4)); }
+  const enc = part('servo_enc', 'servo_pcb', {off:[0,0,0], axis:'s', label:['磁编码器','12 位']});
+  smdChip(enc.group, {x:0, y:3.5, z:6, w:4.9, d:3.9, h:1.3, n:4, pitch:1.27, side:'x', mark:'ENC', markSize:0.9});
+  anchor('servo_plug', pcb.group, -4.2, 6.2, -17.6);
+  anchor('servo_core', pcb.group, -4, 4.6, -7);
+  // 插头
+  const plug = mesh(new THREE.BoxGeometry(7.2,4.4,3.4), M.whiteP, -4.2, 6.2, -16.8); pcb.group.add(plug);
+
+  const frame = sub('servo_frame', 0, 0, ['中壳','']);
+  const fh = 19.5, fy = 2.5;
+  frame.group.add(boxB(1.5,fh,L,M.case,-W/2+0.75,fy,0)); frame.group.add(boxB(1.5,fh,L,M.case,W/2-0.75,fy,0));
+  frame.group.add(boxB(W-3,fh,1.5,M.case,0,fy,L/2-0.75));
+  frame.group.add(boxB(W-3,fh-7.2,1.5,M.case,0,fy+7.2,-L/2+0.75));
+  const motor = sub('servo_motor', 4, 0.3, ['直流电机','']);
+  motor.group.add(cylB(4.5,11,M.steel,0,4.6,-10,32)); motor.group.add(cylB(4.2,1.4,M.black,0,4.0,-10,32));
+  motor.group.add(cylB(0.5,2.8,M.steel,0,15.6,-10,10));
+  motor.group.add(mesh(gearGeo(2,8,1.6,0.4),M.brass,0,16.8,-10));
+  const gearAx = {A:-2, O:6};
+  const stages = [['A',16.8,M.pom,12],['O',18.4,M.pom,17],['A',20.0,M.cream,22],['O',21.6,M.cream,27]];
+  stages.forEach(([ax,y,mat,off],i)=>{
+    const g = part('servo_g'+(i+1), 'servo', {off:[0,off,0], d:0.4+i*0.06, axis:'s', label:i===2?['减速齿轮组','约 288 : 1']:null,
+      info:{...INFO.servo_g, n:`减速齿轮 · 第 ${i+1} 级`, role:GEARNOTE[i]+INFO.servo_g.role}});
+    const z = gearAx[ax];
+    g.group.add(mesh(gearGeo(6,24,1.6),mat,0,y,z));
+    if (i<3) g.group.add(mesh(gearGeo(2,8,1.6,0.4),mat,0,y+1.6,z));
+    if (i<3) g.group.add(cylB(0.5,9,M.steel,0,y-3,z,10));
+    if (i===3){
+      g.group.add(cylB(1.1,21.5,M.steel,0,5.9,z,16));
+      const mag = part('servo_magnet', 'servo_g4', {off:[0,0,0], axis:'s', label:['磁铁','N | S']});
+      const h1 = mesh(new THREE.CylinderGeometry(1.8,1.8,1.1,24,1,false,0,Math.PI), M.magN, 0, 5.4, z);
+      const h2 = mesh(new THREE.CylinderGeometry(1.8,1.8,1.1,24,1,false,Math.PI,Math.PI), M.magS, 0, 5.4, z);
+      mag.group.add(h1, h2);
+    }
+  });
+  const topC = sub('servo_top', 40, 0.7, ['上盖','']);
+  topC.group.add(mesh(new RoundedBoxGeometry(W,4.4,L,2,1.2), M.case2, 0, 22+2.2, 0));
+  topC.group.add(cylB(4.6,0.8,M.case,0,26.4,6,32));
+  const horn = sub('servo_horn', 50, 0.8, ['输出舵盘','0–4095 = 0–360°']);
+  horn.group.add(cylB(7.6,2.2,std(0x34363b,{roughness:0.4}),0,27.0,6,48));
+  for (let k=0;k<4;k++){ const a = k*Math.PI/2+Math.PI/4; horn.group.add(cylB(0.75,0.3,std(0x0e0f10),Math.cos(a)*5.2,29.0,6+Math.sin(a)*5.2,12)); }
+  horn.group.add(cylB(1.6,0.6,M.steel,0,29.0,6,6));
+
+  const cab = part('servo_cable', null, {dyn:true});
+  const cm = [0x1c1c1c, 0xc8352e, 0xe8e6e0].map(c=>wireMat(c));
+  cm.forEach(m=>{ const t = mesh(new THREE.BufferGeometry(), m); cab.group.add(t); servoCable.tubes.push(t); });
+}
+
+/* ---------------- 组装 ---------------- */
+function buildAll(){
+  buildBoard(); buildK3();
+  electrolytic();
+  resistor('R1','4G','4F',['brown','black','orange','gold'],{off:18,d:0.24});
+  resistor('R2','14K','16K',['brown','black','yellow','gold'],{stand:true,off:16,d:0.25});
+  resistor('R3','6B','9B',['brown','black','yellow','gold'],{off:13,d:0.22});
+  discCap('C2','11G','11F',{off:15,d:0.24}); discCap('C5','2E','3E',{off:15,d:0.2});
+  build241(); buildTXB(); buildMCU(); buildExt(); buildServo(); buildWires();
+  // 每个网格归属到最深的零件；材质逐个复制，方便单独高亮 / 变透明
+  for (let i=order.length-1;i>=0;i--){
+    const p = order[i];
+    p.group.traverse(o=>{
+      if (!o.isMesh || o.userData.pid) return;
+      o.userData.pid = p.id;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const cl = mats.map(m=>{ const c = m.clone(); c.userData.base = {op:c.opacity, tr:c.transparent, em:c.emissive?c.emissive.clone():null, ei:c.emissiveIntensity}; return c; });
+      o.material = Array.isArray(o.material) ? cl : cl[0];
+      o.userData.mats = cl;
+      allMeshes.push(o);
+    });
+  }
+  order.forEach(p=>{ p.meshes = []; p.group.traverse(o=>{ if (o.isMesh) p.meshes.push(o); }); });
+}
+const allMeshes = [];
+
+/* ---------------- 爆炸动画 ---------------- */
+const state = {t:0, s:0, tTarget:null, sTarget:null, sel:null, hov:null, labels:true, xray:false, spin:false, mode:'off', dir:0};
+const ease = e => e<0.5 ? 4*e*e*e : 1-Math.pow(-2*e+2,3)/2;
+function applyExplode(){
+  for (const p of order){
+    const v = p.axis==='s' ? state.s : state.t;
+    const e = Math.min(1, Math.max(0, (v-p.d)/Math.max(0.15, 0.95-p.d)));
+    p.prog = ease(e);
+    if (p.dyn) continue;
+    p.group.position.copy(p.home).addScaledVector(p.off, p.prog);
+    if (p.id==='servo') p.group.position.y += 40*ease(Math.min(1,state.s*1.3));
+  }
+  scene.updateMatrixWorld(true);
+  rebuildDynamic();
+}
+
+/* ---------------- 标注 ---------------- */
+const labelObjs = [];
+const MAJOR = new Set(['bb_shell','bb_strips','txb','u241','K3','mcu','ext','servo']);
+const PASSIVE = new Set(['R1','R2','R3','C2','C4','C5']);
+function buildLabels(){
+  scene.updateMatrixWorld(true);
+  for (const p of order){
+    if (!p.label) continue;
+    const box = new THREE.Box3().setFromObject(p.group);
+    if (box.isEmpty()) continue;
+    const top = V((box.min.x+box.max.x)/2, box.max.y+1.2, (box.min.z+box.max.z)/2);
+    if (p.id==='bb_shell') top.set(-30, 0.6, 19);
+    if (p.id==='bb_strips') top.set(20, -4, 16);
+    const local = p.group.worldToLocal(top.clone());
+    const el = document.createElement('div'); el.className = 'l3'; el.dataset.p = p.id;
+    el.innerHTML = `<div class="t"><b>${p.label[0]}</b>${p.label[1]?`<small>${p.label[1]}</small>`:''}</div><div class="stem"></div><div class="dot"></div>`;
+    el.addEventListener('click', e=>{ e.stopPropagation(); select(p.id, true); });
+    const o = new CSS2DObject(el); o.position.copy(local); o.center.set(0.5, 1);
+    p.group.add(o); labelObjs.push({p, o, el});
+  }
+}
+const GATE_SVG = `<svg viewBox="0 0 200 96" aria-hidden="true">
+    <text x="4" y="22">TX·2A</text><path class="wire g2" d="M40 19H70"/>
+    <path class="gate g2" d="M70 7L98 19L70 31Z"/><path class="wire g2" d="M98 19H150"/>
+    <text x="153" y="22">2Y</text><text x="62" y="44">2OE（高有效）</text>
+    <text x="153" y="72">1A</text><path class="wire g1" d="M150 69H128"/>
+    <path class="gate g1" d="M128 57L100 69L128 81Z"/>
+    <path class="wire g1" d="M100 69H40"/><text x="4" y="72">RX·1Y</text><text x="84" y="93">1OE（低有效）</text>
+    <path class="wire" d="M170 26V62" style="stroke:var(--wdata);stroke-width:2"/><text x="174" y="47" style="fill:var(--wdata)">DATA</text>
+  </svg>`;
+const gateCard = () => `<div class="card3 gatecard"><div class="h">74LVC2G241 内部 · 两个三态门</div>${GATE_SVG}<div class="st"></div></div>`;
+function updateCard(){
+  const d = state.dir;
+  document.querySelectorAll('.gatecard').forEach(c=>{
+    c.querySelectorAll('.g2').forEach(e=>e.classList.toggle('on', d===1));
+    c.querySelectorAll('.g1').forEach(e=>e.classList.toggle('on', d===0));
+    c.querySelector('.st').textContent = d ? 'DIR = 1：2 号门开，TX 送上 DATA（发送）' : 'DIR = 0：1 号门开，DATA 送回 RX（接收）';
+  });
+}
+
+/* ---------------- 信号流 ---------------- */
+const TX_PATH = ['@mcu_core','@mcuB_TX','~S3','@s17B','@s17E','@htxb_17E','@ptxb_17E','@ctxb','@ptxb_17G','@htxb_17G','@s17G','@s17L','~S6','@s9L','@s9G','@h241_9G','@p241_9G','@c241','@p241_8F','@h241_8F','@s8F','@s8C','~S8','@s4C','@s4B','@k3pin_4','@k3_4','~cable','@servo_plug','@servo_core'];
+const RX_PATH = ['@servo_core','@servo_plug','~cable-','@k3_4','@k3pin_4','@s4B','@s4A','~S9-','@s7A','@s7F','@h241_7F','@p241_7F','@c241','@p241_8G','@h241_8G','@s8G','@s8L','~S5','@s16L','@s16G','@htxb_16G','@ptxb_16G','@ctxb','@ptxb_16E','@htxb_16E','@s16E','@s16B','~S2','@mcuB_RX','@mcu_core'];
+function pathPoints(spec){
+  const pts = [];
+  for (const t of spec){
+    if (t[0]==='@'){ pts.push(wp(t.slice(1))); continue; }
+    const rev = t.endsWith('-'), id = t.slice(1).replace('-','');
+    let ps;
+    if (id==='cable') ps = servoCable.curve.getPoints(30);
+    else { const w = wires[id]; ps = w.curve.getPoints(40); if (!w.dyn) ps = ps.map(p=>p.add(w.part.group.position)); }
+    if (rev) ps.reverse();
+    pts.push(...ps);
+  }
+  return pts;
+}
+function sampler(pts){
+  const acc = [0]; for (let i=1;i<pts.length;i++) acc.push(acc[i-1]+pts[i].distanceTo(pts[i-1]));
+  const L = acc[acc.length-1];
+  return u => { const d = u*L; let lo=0, hi=acc.length-1; while (hi-lo>1){ const m=(lo+hi)>>1; acc[m]<d?lo=m:hi=m; }
+    const f = (d-acc[lo])/Math.max(1e-6, acc[hi]-acc[lo]); return pts[lo].clone().lerp(pts[hi], f); };
+}
+const glowTex = (()=>{ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const r = g.createRadialGradient(32,32,0,32,32,32); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(0.25,'rgba(255,255,255,.85)'); r.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); })();
+function makeStream(color){
+  const N = 48, geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N*3), 3));
+  const mat = new THREE.PointsMaterial({color, size:9, map:glowTex, transparent:true, depthTest:false, depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true});
+  const pts = new THREE.Points(geo, mat); pts.renderOrder = 10; pts.frustumCulled = false; scene.add(pts);
+  return {pts, geo, us:[], emitAcc:0, N};
+}
+let txS, rxS;
+const PHASES = [['dir1',0.6,'DIR = 1'],['tx',2.6,'发 10 字节'],['tc',0.6,'等 TC'],['dir0',0.5,'DIR = 0'],['wait',0.7,'≈ 0.5 ms'],['rx',3.0,'收 14 字节'],['idle',1.2,'空闲']];
+const PING = 'FF FF FD 00 01 03 00 01 19 4E'.split(' ');
+const PONG = 'FF FF FD 00 01 07 00 55 00 B0 04 ·· ·· ··'.split(' ');
+let phaseT = 0, phaseI = 0;
+function curPhase(){ return PHASES[phaseI][0]; }
+function stepStreams(dt){
+  let txOn=false, rxOn=false, prog=0;
+  if (state.mode==='tx'){ txOn = true; state.dir = 1; phaseT = (phaseT+dt)%2.6; prog = phaseT/2.6; }
+  else if (state.mode==='rx'){ rxOn = true; state.dir = 0; phaseT = (phaseT+dt)%3.0; prog = phaseT/3.0; }
+  else if (state.mode==='auto'){
+    phaseT += dt; while (phaseT > PHASES[phaseI][1]){ phaseT -= PHASES[phaseI][1]; phaseI = (phaseI+1)%PHASES.length; }
+    const k = curPhase(); prog = phaseT/PHASES[phaseI][1];
+    state.dir = (k==='dir1'||k==='tx'||k==='tc') ? 1 : 0;
+    txOn = k==='tx'; rxOn = k==='rx';
+  }
+  if (state.mode!=='off' && lastDir!==state.dir){ lastDir = state.dir; updateCard(); }
+  const txP = sampler(pathPoints(TX_PATH)), rxP = sampler(pathPoints(RX_PATH));
+  for (const [S,on,f] of [[txS,txOn,txP],[rxS,rxOn,rxP]]){
+    if (on){ S.emitAcc += dt; while (S.emitAcc > 0.11){ S.emitAcc -= 0.11; if (S.us.length < S.N) S.us.push(0); } }
+    S.us = S.us.map(u=>u+dt/2.4).filter(u=>u<1);
+    const a = S.geo.attributes.position.array; a.fill(0);
+    S.us.forEach((u,i)=>{ const p = f(u); a[i*3]=p.x; a[i*3+1]=p.y; a[i*3+2]=p.z; });
+    S.geo.setDrawRange(0, S.us.length); S.geo.attributes.position.needsUpdate = true;
+  }
+  updateTicker(txOn, rxOn, prog);
+  return {txOn, rxOn};
+}
+let lastDir = -1, tickKey = '';
+function updateTicker(txOn, rxOn, prog){
+  const tk = document.getElementById('ticker');
+  if (state.mode==='off'){ tk.hidden = true; return; }
+  tk.hidden = false;
+  const steps = document.getElementById('steps');
+  const sh = state.mode==='auto' ? PHASES.map((p,i)=>`<span class="step${i===phaseI?' on':''}">${p[2]}</span>`).join('')
+    : state.mode==='tx' ? '<span class="step on">DIR = 1</span><span class="step">MCU → 舵机，连续发 ping</span>' : '<span class="step on">DIR = 0</span><span class="step">舵机 → MCU，连续回应答</span>';
+  if (steps.dataset.h !== sh){ steps.dataset.h = sh; steps.innerHTML = sh; }
+  const isTx = state.mode==='tx' || (state.mode==='auto' && PHASES[phaseI][0]!=='rx' && phaseI<4);
+  const bytes = isTx ? PING : PONG;
+  let lit = 0;
+  if (txOn || rxOn) lit = Math.floor(prog*bytes.length);
+  else if (state.mode==='auto') lit = phaseI<5 && phaseI>1 ? bytes.length : (phaseI===6 ? PONG.length : 0);
+  const key = state.mode+(isTx?'t':'r')+lit+'|'+(state.mode==='auto'?phaseI:'');
+  if (key===tickKey) return; tickKey = key;
+  document.getElementById('bytes').innerHTML = `<span class="who">${isTx?'MCU → 舵机（ping）':'舵机 → MCU（应答）'}</span>` + bytes.map((b,i)=>`<span class="by${i<lit?' lit':''}${(txOn||rxOn)&&i===lit?' cur':''}">${b}</span>`).join('');
+  document.getElementById('tnote').textContent = isTx
+    ? 'ID 1 · 57600 8N1。真实发送 10 字节约 1.7 ms，动画放慢了一千多倍。'
+    : '正常应答 14 字节：B0 04 = 型号 1200（XL330-M288），后 3 字节是固件版本和 CRC。';
+}
+const TXW = ['S3','S6','S8'], RXW = ['S9','S5','S2'], DIRW = ['S1','S4','S7'];
+
+/* ---------------- 选择、悬停、视觉状态 ---------------- */
+const ACC = new THREE.Color();
+function readAccent(){ ACC.set(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f0b24a'); }
+function walk(p, fn){ fn(p); p.children.forEach(c=>walk(c, fn)); }
+function setFlags(){
+  for (const p of order){ p.flags.sel = false; p.flags.hov = false; }
+  if (state.sel) walk(parts.get(state.sel), p=>p.flags.sel = true);
+  if (state.hov) walk(parts.get(state.hov), p=>p.flags.hov = true);
+  if (state.sel==='servo_g1'||state.sel==='servo_g2'||state.sel==='servo_g3'||state.sel==='servo_g4') {}
+}
+const tmpC = new THREE.Color();
+function updateVisuals(time, sig){
+  const anySel = !!state.sel;
+  const stripP = parts.get('bb_strips').prog;
+  for (const m of allMeshes){
+    const p = parts.get(m.userData.pid);
+    let op = 1;
+    if (anySel && !p.flags.sel) op = 0.13;
+    if (p.id==='bb_shell') op *= state.xray ? 0.22 : (1 - 0.5*stripP);
+    if (p.id==='servo_frame') op *= state.xray ? 0.25 : 1 - 0.6*Math.min(1, state.s*1.5);
+    else if (state.xray && (p.id==='servo_top'||p.id==='servo_bottom')) op *= 0.25;
+    let ek = 0; tmpC.setRGB(0,0,0);
+    if (p.flags.hov){ tmpC.copy(ACC); ek = 0.35; }
+    if (sig && wires[p.id]){
+      const id = p.id;
+      const on = (TXW.includes(id) && sig.txOn) || (RXW.includes(id) && sig.rxOn) || (DIRW.includes(id) && state.dir===1);
+      if (on){ tmpC.setHex(WCOL[wires[id].col]); ek = 0.55 + 0.25*Math.sin(time*8); }
+    }
+    for (const mat of m.userData.mats){
+      const b = mat.userData.base, o = b.op*op;
+      const tr = b.tr || o < 0.999;
+      if (mat.transparent !== tr){ mat.transparent = tr; mat.needsUpdate = true; }
+      mat.opacity = o; mat.depthWrite = o > 0.5;
+      if (mat.emissive){
+        if (ek > 0){ mat.emissive.copy(tmpC); mat.emissiveIntensity = ek; }
+        else if (b.em){ mat.emissive.copy(b.em); mat.emissiveIntensity = b.ei; }
+      }
+    }
+  }
+  // 标注
+  for (const {p,o,el} of labelObjs){
+    let vis = state.labels;
+    const inServo = p.id.startsWith('servo_');
+    if (MAJOR.has(p.id)) vis = vis && (state.t > 0.16 || p.flags.sel);
+    else if (PASSIVE.has(p.id)) vis = vis && (state.t > 0.85 || p.flags.sel) && state.mode==='off';
+    else if (inServo) vis = vis && state.s > 0.3;
+    else vis = vis && state.t > 0.72;
+    if (p.id==='servo' && state.s > 0.3) vis = false;
+    if (p.id==='bb_strips' && state.t < 0.3) vis = false;
+    if (p.id==='bb_shell' && state.t > 0.3) vis = false;
+    if (anySel && !p.flags.sel) vis = false;
+    o.visible = vis;
+    el.classList.toggle('sel', state.sel===p.id);
+  }
+}
+
+/* ---------------- 相机 ---------------- */
+const HOME = {target:V(-4,4,20), pos:V(165,215,290)};
+let camTween = null;
+function homeView(animate=true){
+  const portrait = innerWidth/innerHeight < 0.9;
+  const k = portrait ? 2.3 : (innerWidth < 1100 ? 1.2 : 1);
+  const tgt = HOME.target.clone().add(portrait ? V(4,0,6) : V(0,0,0));
+  const pos = HOME.pos.clone().sub(HOME.target).multiplyScalar(k).add(tgt);
+  flyTo(tgt, pos, animate);
+}
+function flyTo(target, pos, animate=true){
+  if (!animate || REDUCED){ controls.target.copy(target); camera.position.copy(pos); camTween = null; return; }
+  camTween = {t0:performance.now(), dur:900, ft:controls.target.clone(), fp:camera.position.clone(), tt:target, tp:pos};
+}
+function boxAt(p, t, s){
+  const ot = state.t, os = state.s; state.t = t; state.s = s; applyExplode();
+  const b = new THREE.Box3(); p.group.traverse(o=>{ if (o.isMesh) b.expandByObject(o); });
+  state.t = ot; state.s = os; applyExplode(); return b;
+}
+function focusPart(id){
+  const p = parts.get(id);
+  const t = state.tTarget ?? state.t, s = state.sTarget ?? state.s;
+  const b = boxAt(p, t, s); if (b.isEmpty()) return;
+  const c = b.getCenter(new THREE.Vector3()), size = b.getSize(new THREE.Vector3()).length();
+  const dist = Math.min(420, Math.max(45, size*2.3)) * (innerWidth/innerHeight < 0.9 ? 1.5 : 1);
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flyTo(c, c.clone().addScaledVector(dir, dist));
+}
+
+/* ---------------- 面板 ---------------- */
+const sheetBody = document.getElementById('sheetBody');
+const LIST = [['面包板',['bb_shell','bb_strips','bb_backing']],['芯片模块',['txb','txb_chip','u241','u241_chip']],['电阻电容',['R1','R2','R3','C2','C4','C5']],['外部设备',['mcu','ext','servo','K3','servo_cable']]];
+const esc = s => String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function renderSheet(){
+  const id = state.sel;
+  document.querySelectorAll('.node').forEach(n=>n.classList.toggle('on', !!id && (id===n.dataset.p || id.startsWith(n.dataset.p+'_'))));
+  document.getElementById('gripName').textContent = id ? parts.get(id).info.n : '零件说明';
+  if (!id){
+    sheetBody.innerHTML = `
+      <p class="pname" style="font-size:20px">怎么看这张图</p>
+      <ol class="guide">
+        <li><b>拖动</b>旋转，<b>滚轮</b>或双指缩放，<b>右键</b>平移。</li>
+        <li><b>点任意零件</b>看它是什么、在信号链的哪一段、为什么这样接。</li>
+        <li>底部第一个滑块把整套接线<b>拆开</b>，第二个滑块<b>拆开舵机</b>。</li>
+        <li>“信号”选<b>一问一答</b>，看 ping 包从 MCU 走到舵机、应答再走回来。</li>
+      </ol>
+      ${LIST.map(([h,ids])=>`<div class="grp"><h3>${h}</h3>${ids.map(i=>`<button class="pl" data-p="${i}"><span class="sw" style="background:var(--panel2)"></span>${esc(parts.get(i).info.n)}</button>`).join('')}</div>`).join('')}
+      <details class="wires"><summary>导线 ${WIRES.length} 根</summary><div class="grp">${WIRES.map(w=>`<button class="pl" data-p="${w[0]}"><span class="sw" style="background:${WCSS[w[3]]}"></span>${w[0]}<small>${w[1].replace('MCU:','MCU ').replace('EXT:','电源 ')} → ${w[2].replace('MCU:','MCU ')}</small></button>`).join('')}</div></details>`;
+  } else {
+    const p = parts.get(id), I = p.info;
+    const chain = []; let q = p; while (q){ chain.unshift(q); q = q.parent ? parts.get(q.parent) : null; }
+    const servoKids = id==='servo' || id.startsWith('servo_');
+    sheetBody.innerHTML = `
+      <div class="crumb"><button data-clear>全部</button>${chain.slice(0,-1).map(c=>`<span>›</span><button data-p="${c.id}">${esc(c.info.n)}</button>`).join('')}</div>
+      <div><p class="pname">${esc(I.n)}</p><div class="pen">${esc(I.en||'')}</div></div>
+      <div class="tags"><span class="tag">${esc(I.cat)}</span><span class="tag where">${esc(I.where)}</span></div>
+      <p class="role">${esc(I.role)}</p>
+      ${I.specs && I.specs.length ? `<dl class="specs">${I.specs.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+      ${id.startsWith('u241') ? gateCard() : ''}
+      ${I.tip ? `<div class="tip">${I.tip}</div>` : ''}
+      ${p.children.length ? `<div class="grp"><h3>组成</h3>${p.children.map(c=>`<button class="pl" data-p="${c.id}"><span class="sw" style="background:var(--panel2)"></span>${esc(c.info.n)}</button>`).join('')}</div>` : ''}
+      <div class="row">
+        ${servoKids ? `<button class="btn pri" data-servo>${state.s>0.5?'合上舵机':'拆开舵机'}</button>` : ''}
+        <button class="btn" data-focus>对准它</button>
+        <button class="btn" data-clear>取消选择</button>
+      </div>`;
+    updateCard();
+  }
+}
+sheetBody.addEventListener('click', e=>{
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.p) select(b.dataset.p, true);
+  else if ('clear' in b.dataset) select(null);
+  else if ('focus' in b.dataset) focusPart(state.sel);
+  else if ('servo' in b.dataset) toggleServo();
+});
+document.getElementById('chain').addEventListener('click', e=>{ const b = e.target.closest('.node'); if (b) select(b.dataset.p, true); });
+const sheet = document.getElementById('sheet');
+document.getElementById('grip').addEventListener('click', ()=>{ sheet.classList.toggle('open'); document.getElementById('gripArrow').textContent = sheet.classList.contains('open') ? '收起' : '展开'; });
+
+function select(id, focus=false){
+  state.sel = id; setFlags(); renderSheet();
+  if (id && focus) focusPart(id);
+  if (!id) homeView();
+}
+function toggleServo(){
+  const open = state.s < 0.5;
+  state.sTarget = open ? 1 : 0;
+  if (open && (!state.sel || !(state.sel==='servo'||state.sel.startsWith('servo_')))) state.sel = 'servo';
+  setFlags(); renderSheet(); focusPart('servo');
+}
+
+/* ---------------- 指针 ---------------- */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+const tip = document.getElementById('tip');
+function pick(ev){
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX-r.left)/r.width)*2-1, -((ev.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(allMeshes, false);
+  for (const h of hits){
+    const p = parts.get(h.object.userData.pid);
+    if (!h.object.visible) continue;
+    if (state.sel && !p.flags.sel && hits.some(o=>parts.get(o.object.userData.pid).flags.sel)) continue;
+    if (p.id==='bb_shell' && state.xray) continue;
+    return p.id;
+  }
+  return null;
+}
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e=>{ down = {x:e.clientX, y:e.clientY}; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if (!down) return; const moved = Math.hypot(e.clientX-down.x, e.clientY-down.y); down = null;
+  if (moved > 5) return;
+  const id = pick(e);
+  select(id, !!id);
+});
+let hovQueued = null;
+renderer.domElement.addEventListener('pointermove', e=>{ if (e.pointerType==='mouse') hovQueued = e; });
+renderer.domElement.addEventListener('pointerleave', ()=>{ hovQueued = null; state.hov = null; setFlags(); tip.hidden = true; });
+function doHover(){
+  if (!hovQueued || down) return; const e = hovQueued; hovQueued = null;
+  const id = pick(e);
+  if (id !== state.hov){ state.hov = id; setFlags(); renderer.domElement.style.cursor = id ? 'pointer' : 'grab'; }
+  if (id){ tip.hidden = false; tip.textContent = parts.get(id).info.n; tip.style.left = e.clientX+'px'; tip.style.top = e.clientY+'px'; }
+  else tip.hidden = true;
+}
+
+/* ---------------- 控制条 ---------------- */
+const tS = document.getElementById('tSlider'), sS = document.getElementById('sSlider');
+tS.addEventListener('input', ()=>{ state.t = tS.value/1000; state.tTarget = null; });
+sS.addEventListener('input', ()=>{ state.s = sS.value/1000; state.sTarget = null; });
+const playIco = document.getElementById('playIco');
+document.getElementById('play').addEventListener('click', ()=>{ state.tTarget = state.t > 0.5 ? 0 : 1; });
+document.getElementById('sig').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if (!b) return;
+  state.mode = b.dataset.m; phaseI = 0; phaseT = 0; tickKey = ''; lastDir = -1;
+  document.querySelectorAll('#sig button').forEach(x=>x.classList.toggle('on', x===b));
+  if (state.mode==='off'){ txS.us = []; rxS.us = []; }
+  if (state.mode!=='off' && state.t < 0.35) state.tTarget = 0.55;
+  document.getElementById('ticker').hidden = state.mode==='off'; resize();
+});
+const tg = (id, k, after) => document.getElementById(id).addEventListener('click', e=>{ state[k] = !state[k]; e.currentTarget.classList.toggle('on', state[k]); after && after(); });
+tg('tLabels','labels'); tg('tXray','xray'); tg('tSpin','spin', ()=>{ controls.autoRotate = state.spin; });
+controls.autoRotateSpeed = 0.6;
+document.getElementById('tReset').addEventListener('click', ()=>{ select(null); });
+addEventListener('keydown', e=>{
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='Escape') select(null);
+  else if (e.key===' '){ e.preventDefault(); state.tTarget = state.t > 0.5 ? 0 : 1; }
+  else if (e.key==='x'||e.key==='X') document.getElementById('tXray').click();
+});
+
+/* ---------------- 主循环 ---------------- */
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h); css.setSize(w, h); camera.aspect = w/h;
+  const dh = document.getElementById('dock').offsetHeight;
+  document.documentElement.style.setProperty('--dockh', dh+'px');
+  // 让画面中心落在“没被面板挡住”的区域：桌面端右侧有说明面板，底部有控制条
+  if (w > 760) camera.setViewOffset(w, h, Math.round((sheet.offsetWidth+16)/2), Math.round(dh/2 - 50), w, h);
+  else camera.setViewOffset(w, h, 0, Math.round(dh/2 - 10), w, h);
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+const clock = new THREE.Clock();
+let lastT = -1, lastS = -1;
+function loop(){
+  const dt = Math.min(0.05, clock.getDelta()), time = clock.elapsedTime;
+  for (const [k,kt,sl,lab] of [['t','tTarget',tS,'tval'],['s','sTarget',sS,'sval']]){
+    if (state[kt] != null){
+      const d = state[kt]-state[k], step = dt/(k==='t'?1.6:1.2);
+      state[k] = Math.abs(d) <= step ? state[kt] : state[k]+Math.sign(d)*step;
+      if (state[k]===state[kt]) state[kt] = null;
+      sl.value = Math.round(state[k]*1000);
+    }
+    if (state[kt] == null && document.activeElement !== sl) sl.value = Math.round(state[k]*1000);
+    document.getElementById(lab).textContent = Math.round(state[k]*100)+'%';
+  }
+  const collapsing = (state.tTarget ?? state.t) > 0.5;
+  if (playIco.dataset.c !== String(collapsing)) { playIco.dataset.c = String(collapsing); playIco.innerHTML = collapsing
+    ? '<path d="M3 3h10v10H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 6h4v4H6z" fill="currentColor"/>'
+    : '<path d="M8 1v5M8 10v5M1 8h5M10 8h5" stroke="currentColor" stroke-width="2" fill="none"/>'; }
+  if (state.t!==lastT || state.s!==lastS){ applyExplode(); lastT = state.t; lastS = state.s;
+    const sb = document.querySelector('[data-servo]'); if (sb) sb.textContent = (state.sTarget ?? state.s) > 0.5 ? '合上舵机' : '拆开舵机'; }
+  if (camTween){
+    const k = Math.min(1, (performance.now()-camTween.t0)/camTween.dur), e = ease(k);
+    controls.target.lerpVectors(camTween.ft, camTween.tt, e); camera.position.lerpVectors(camTween.fp, camTween.tp, e);
+    if (k>=1) camTween = null;
+  }
+  controls.update();
+  doHover();
+  const sig = state.mode!=='off' ? stepStreams(dt) : null;
+  if (!sig && txS){ txS.geo.setDrawRange(0,0); rxS.geo.setDrawRange(0,0); }
+  updateVisuals(time, sig);
+  renderer.render(scene, camera); css.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+/* ---------------- 主题 ---------------- */
+function onTheme(){ readAccent(); buildGrid(); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', onTheme);
+new MutationObserver(onTheme).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+
+/* ---------------- 启动 ---------------- */
+await Promise.race([document.fonts.ready, new Promise(r=>setTimeout(r,1500))]);
+buildAll(); applyExplode(); buildLabels(); onTheme();
+txS = makeStream(0xffb21a); rxS = makeStream(0x2fe070);
+document.getElementById('tkCard').innerHTML = gateCard(); updateCard(); setFlags(); renderSheet(); resize(); homeView(false);
+document.getElementById('loading').remove();
+if (REDUCED) state.t = 0.6; else setTimeout(()=>{ state.tTarget = 0.62; }, 500);
+window.__xl330 = {state, parts, select, toggleServo, step:n=>{ for (let i=0;i<n;i++) stepStreams(0.05); }};
+loop();
+</script>
+
+</body>
+</html>

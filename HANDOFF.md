@@ -42,6 +42,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `docs/breadboard/快速检查.md/.html` | **推荐先用**：4 步 18 项，手动切 DIR，不用改程序 |
 | `docs/breadboard/分级检查.md/.html` | 80 项：MCU → +TXB → +241 → +舵机，每项有目的，静态电平用跳线 |
 | `docs/breadboard/通信全面检查.md/.html` | 86 项全面版 |
+| `docs/exploded/xl330_exploded.html` | three.js 3D 爆炸图（单文件，CDN 加载 three@0.169.0）：整套接线 + 舵机内部（示意）+ TX/RX 信号流动画；根目录 `Start-Exploded-View.bat` 先 git pull main 再打开。接线数据 `WIRES` 抄自 `xl330_breadboard.html`，改接线时两边一起改 |
 | `tools/check_wiring.py` | 接线网络核对（`--selftest` 自测） |
 | `tools/*_check_data.py` | 三份检查表的数据源（生成 md 和页面 JSON） |
 | `firmware/dxl/` | Protocol 2.0 驱动 `dxl.c/.h`、硬件接口 `dxl_port.h`、示例 `dxl_example.c`、测试程序 `dxl_bench.c`（'A' DIR=0、'B' DIR=1、'L' 回环、'S' 舵机） |
