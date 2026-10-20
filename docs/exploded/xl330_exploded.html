@@ -271,7 +271,7 @@ function holeXZ(s){
 const INFO = {
   bb_shell:{n:'面包板',en:'Solderless breadboard',cat:'底座',where:'所有元件插在这里',
     role:'免焊接的插线板。每个孔下面藏着金属簧片，插进同一组孔的引脚就被连在一起。这块板 28 列：每列槽下方 A–F 一组、槽上方 G–L 一组；左右的 V1、V3 是电源轨，整条相通。本实验只用下半块。',
-    specs:[['孔距','2.54 mm（0.1 英寸）'],['中间槽宽','7.62 mm（0.3 英寸）'],['触点电流','约 1 A'],['V1','外部 5V（+ 靠里，− 靠外）'],['V3 −','MCU 的 GND']],
+    specs:[['孔距','2.54 mm（0.1 英寸）'],['中间槽宽','7.62 mm（0.3 英寸）'],['触点电流','约 1 A'],['V1','外部 5V（+ 靠里，− 靠外）'],['V1 −','所有 GND 都接这里（V3 不用）']],
     tip:'<b>记号</b>：“6下” = 第 6 列槽下方任一孔，“6上” = 槽上方。舵机的大电流不要走面包板，触点只扛得住约 1 A。'},
   bb_strips:{n:'金属簧片',en:'Contact clips',cat:'底座内部',where:'面包板里面',
     role:'每组孔下面是一片弯成夹子形状的金属弹片，夹住插进来的引脚。同一片上的孔电气相通，不同片之间互不相通。槽两边各一片，所以跨在槽上的芯片两排引脚不会短路。电源轨下面是一整条长簧片。',
@@ -333,7 +333,7 @@ const INFO = {
 
   mcu:{n:'KM1M7C 开发板',en:'MCU board · 3.3 V IO（外形为示意）',cat:'MCU',where:'信号链起点',
     role:'单片机（MCU）：一颗芯片里装着 CPU、Flash（存程序）、RAM 和外设。这里用到三样：UART 串口（TX 发、RX 收）、一个 GPIO 当 DIR、3.3V 电源输出。它的 IO 是 3.3V，所以需要 TXB0104 转成 5V。',
-    specs:[['IO 电平','3.3 V'],['串口','57600 bps，8N1'],['3.3V','→ 14B'],['DIR（GPIO）','→ 15B'],['RX','← 16B'],['TX','→ 17B'],['GND','→ V3 −'],['5V 脚','不接']],
+    specs:[['IO 电平','3.3 V'],['串口','57600 bps，8N1'],['3.3V','→ 14B'],['DIR（GPIO）','→ 15B'],['RX','← 16B'],['TX','→ 17B'],['GND','→ V1 −'],['5V 脚','不接']],
     tip:'<b>最关键的一行代码</b>：发完最后一个字节，要等“发送完成”（TC）标志再把 DIR 切回 0。等“发送缓冲空”（TXE）会把 CRC 的最后一个字节截掉，舵机就不回应。'},
   mcu_chip:{n:'MCU 芯片',en:'KM1M7C（封装为示意）',cat:'MCU',where:'开发板正中',
     role:'CPU 执行你写的程序；UART 外设负责把一个字节拆成一位一位的电平发出去：起始位（0）+ 8 位数据（低位先发）+ 停止位（1），这就是 8N1。57600 bps 时每一位约 17.4 µs。',specs:[]},
@@ -369,16 +369,15 @@ const GEARNOTE = ['第 1 级：电机小齿轮带这个大齿轮。','第 2 级�
 const WIRES = [
   ['E1','EXT:+','V1P:A','5','V1 +（靠里那列）从此是外部 5V'],
   ['E2','EXT:-','V1N:A','g','V1 −（靠外那列）是 GND'],
-  ['M2','MCU:GND','V3N:A','g','V3 −（靠外那列）是 MCU 的 GND，V3 + 不用'],
-  ['P1','V1N:L','V3N:L','g','把两条 GND 连通。外部电源的地和 MCU 的地必须接在一起，这根线从板子上方绕过去',{h:9,lat:[0,0,-30]}],
+  ['M2','MCU:GND','V1N:B','g','MCU 的地也接 V1 −，和外部电源共地。V3 整条不用',{h:4}],
   ['P2','V1N:D','2D','g','舵机 GND'],
   ['P3','V1P:C','3C','5','舵机 VDD = 外部 5V'],
   ['P4','V1P:K','6K','5','241 的 8 脚 VCC = 5V',{h:6}],
   ['P5','6J','11J','5','把 5V 引到第 11 列槽上方（中转）',{h:4.5}],
   ['P6','9D','11D','g','把 241 的 GND（4 脚）引到第 11 列槽下方（中转）'],
   ['P7','11I','14I','5','HV（VB）= 5V，从中转点引过来'],
-  ['P8','11C','V3N:C','g','GND 中转点接 V3 −（MCU 的地），241 的地也由此接通',{h:5}],
-  ['P9','19K','V3N:K','g','模块 GND 接 V3 −',{h:5}],
+  ['P8','11A','V1N:C','g','GND 中转点接 V1 −，241 的地也由此接通',{h:5}],
+  ['P9','19K','V1N:K','g','模块 GND 接 V1 −，这根线长一点，从槽上方绕过去',{h:10}],
   ['P10','18I','19I','g','B4 不用，接旁边的 GND；A4 空着'],
   ['M1','MCU:3V3','14B','33','LV（VA）= 3.3V，MCU 的 3.3V 直接插到这里'],
   ['S1','MCU:DIR','15B','dir','A1，方向控制 DIR'],
@@ -730,7 +729,7 @@ function discCap(id, a, b, {off=16, d=0.22}={}){
 }
 function electrolytic(){
   const id='C4', p = part(id, null, {off:[0,22,0], d:0.2, label:['C4','100 µF']});
-  const A = V(RAILX.V1P,0,rowZ('B')), B = V(RAILX.V1N,0,rowZ('B'));
+  const A = V(RAILX.V1P,0,rowZ('F')), B = V(RAILX.V1N,0,rowZ('F'));
   const mid = A.clone().add(B).multiplyScalar(0.5);
   const sleeve = canvasTex(40, 11, 24, (g)=>{
     g.fillStyle='#1d2230'; g.fillRect(0,0,40,11);
@@ -760,7 +759,7 @@ function buildK3(){
 /* ============================================================
    导线
    ============================================================ */
-const MCU_PIN = {'3V3':14,'DIR':15,'RX':16,'TX':17,'GND':32};
+const MCU_PIN = {'GND':13,'3V3':14,'DIR':15,'RX':16,'TX':17};
 const MCU_Z = 39;
 const wires = {};
 function endPoint(s){
@@ -835,7 +834,7 @@ function buildMCU(){
     g.strokeStyle='#2c3036'; g.lineWidth=0.3;
     for (let i=0;i<14;i++){ g.beginPath(); g.moveTo(4+i*3.2, 4); g.lineTo(6+i*3.0, 9); g.lineTo(26, 14); g.stroke(); }
     for (let c=13;c<=32;c++){ const x = cx(c)-x0; g.fillStyle='#c9a24a'; g.fillRect(x-0.9, MCU_Z-z0-0.9, 1.8, 1.8); }
-    const lbl = {14:'3V3',15:'DIR',16:'RX',17:'TX',32:'GND'};
+    const lbl = {13:'GND',14:'3V3',15:'DIR',16:'RX',17:'TX'};
     for (const c in lbl) txt(g, lbl[c], cx(+c)-x0, MCU_Z-z0+2.4, 1.05, '#e9ecef', 'center', MONO, 600);
     g.strokeStyle='#e9ecef'; g.lineWidth=0.15; g.beginPath(); g.moveTo(cx(16)-x0-1, MCU_Z-z0+3.6); g.lineTo(cx(17)-x0+1, MCU_Z-z0+3.6); g.stroke();
     txt(g, 'UART', (cx(16)+cx(17))/2-x0, MCU_Z-z0+4.6, 0.85, '#9aa2ab');
