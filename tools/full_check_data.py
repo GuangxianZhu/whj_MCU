@@ -13,7 +13,7 @@ def sec(id, title, setup, items): S.append(dict(id=id, t=title, setup=setup, ite
 def yn(i, what, expect, cause): return dict(id=i, k='yn', p=what, e=expect, cause=cause)
 def beep(i, a, b, want, cause): return dict(id=i, k='beep', p=f'{a} ↔ {b}', want=want, e='响' if want else '不响', cause=cause)
 def ohm(i, a, b, lo, hi, show, cause): return dict(id=i, k='ohm', p=f'{a} ↔ {b}', lo=lo, hi=hi, e=show, cause=cause)
-def volt(i, red, rng, cause, black='V3−', show=None):
+def volt(i, red, rng, cause, black='V1 −', show=None):
     return dict(id=i, k='v', p=f'红 {red}，黑 {black}', lo=rng[0], hi=rng[1],
                 e=show or f'{rng[0]:g}–{rng[1]:g} V', cause=cause)
 
@@ -32,12 +32,12 @@ sec('1', '断电 · 目视', '拔掉 USB 和外部 5V。对照接线清单看一
 ])
 
 sec('2', '断电 · 通断和电阻', '万用表打到蜂鸣档（电阻项用电阻档）。拔掉 USB、外部 5V 和舵机线。表笔一端尽量点在器件的针脚上，而不是同一列的另一个孔，这样能顺便查出接触不良。', [
-    beep('2.1', 'V1 −', 'V3 −', True, 'P1 没接通：外部电源和 MCU 的地是分开的，通信一定失败。'),
+    beep('2.1', 'MCU 的 GND 针', 'V1 −', True, 'M2 没接通或插到了 V3 −：外部电源和 MCU 的地分开了，通信一定失败。'),
     beep('2.2', 'V1 −', '外部电源 − 端子', True, 'E2 没接通。'),
-    beep('2.3', 'V3 −', 'MCU 的 GND 针', True, 'M2 没接通。'),
+    beep('2.3', 'V1 −', 'V3 −', False, 'V3 上不应该插任何线（所有 GND 只接 V1 −）。响了说明还有旧线把两条轨连着，拔掉。'),
     beep('2.4', 'V1 −', '2下（舵机 GND）', True, 'P2 没接通。'),
-    beep('2.5', 'V3 −', '9下（241 第 4 脚 GND）', True, 'P6（9D → 11D）或 P8（11C → V3 −）没接通。'),
-    beep('2.6', 'V3 −', '19上（TXB GND 针）', True, 'P9 没接通。'),
+    beep('2.5', 'V1 −', '9下（241 第 4 脚 GND）', True, 'P6（9D → 11D）或 P8（11A → V1 −）没接通。'),
+    beep('2.6', 'V1 −', '19上（TXB GND 针）', True, 'P9 没接通。'),
     beep('2.7', '19上', '18上（TXB B4 针）', True, 'P10 没接通，B4 悬空。'),
     beep('2.8', 'V1 +', '3下（舵机 VDD）', True, 'P3 没接通，舵机没电。'),
     beep('2.9', 'V1 +', '6上（241 第 8 脚 VCC）', True, 'P4 没接通，241 没电。'),
@@ -56,7 +56,7 @@ sec('2', '断电 · 通断和电阻', '万用表打到蜂鸣档（电阻项用�
     beep('2.22', '7下（241 第 2 脚 1A）', '4下', True, 'S9 没接通，DATA 到不了接收端。'),
     beep('2.23', '4下', '舵机线 3 号线的插头端', True, '舵机线或排针接触不良。'),
     beep('2.24', 'V1 +', 'V1 −', False, '5V 对地短路。先找出短路再上电。'),
-    beep('2.25', '14下', 'V3 −', False, '3.3V 对地短路。'),
+    beep('2.25', '14下', 'V1 −', False, '3.3V 对地短路。'),
     beep('2.26', '14下', '14上', False, '3.3V 和 5V 连在一起了，会损坏 MCU。'),
     beep('2.27', '15下', '16下', False, '相邻两列短路（DIR 和 RX）。'),
     beep('2.28', '16下', '17下', False, '相邻两列短路（RX 和 TX）。'),
@@ -71,9 +71,9 @@ sec('2', '断电 · 通断和电阻', '万用表打到蜂鸣档（电阻项用�
     ohm('2.37', '14上', '16上', 70, 110, '约 100 kΩ', '读到约 10k 就是 R2 插成了 10k；读不到说明 R2 没插好。'),
 ])
 
-sec('3', '上电 · 静态', '插回舵机线。固件进入<b>模式 A</b>：DIR 输出 0，UART 初始化好但不发送。先插 MCU 的 USB，再开外部 5V。电压档，黑表笔默认放 V3 −。', [
+sec('3', '上电 · 静态', '插回舵机线。固件进入<b>模式 A</b>：DIR 输出 0，UART 初始化好但不发送。先插 MCU 的 USB，再开外部 5V。电压档，黑表笔默认放 V1 −。', [
     volt('3.1', 'V1 +', V5, '外部电源电压不对，或 E1 没接好。', black='V1 −'),
-    volt('3.2', 'V1 −', (-0.05, 0.05), '两条地之间有电压差：P1 接触不良。', show='约 0 V'),
+    volt('3.2', 'MCU 的 GND 针', (-0.05, 0.05), 'MCU 的地和外部电源的地之间有电压差：M2 接触不良。', show='约 0 V'),
     volt('3.3', 'MCU 的 3.3V 针', V33, 'MCU 板没上电或 3.3V 输出异常。'),
     volt('3.4', '14下（LV）', V33, 'M1 接触不良。'),
     volt('3.5', '14上（HV）', V5, 'P4、P5、P7 这一路有接触不良。'),
@@ -134,7 +134,7 @@ def render_md(out):
          ' 交互版（填数自动判断）见 [`通信全面检查.html`](通信全面检查.html)，下载后用浏览器打开。', '',
          '## 记号', '',
          '- **6下**：第 6 列槽下方（A–F 行）的任意一个孔或针；**6上**：第 6 列槽上方（G–L 行）。',
-         '- **V1 +、V1 −、V3 −**：电源轨。V1 是外部 5V 和 GND，V3 − 是 MCU 的 GND。',
+         '- **V1 +、V1 −**：电源轨，外部 5V 和 GND。所有 GND 都接 V1 −，V3 不用。',
          '- **模式 A/B/C**：为了测试临时改的固件状态。A：DIR = 0，UART 空闲；B：DIR = 1，TX 引脚当 GPIO 输出 1；C：DIR = 1，TX 输出 0。',
          '- 按顺序测，遇到第一个不对的项先修好，再往下测。后面的项默认前面都已通过。', '']
     for s in S:

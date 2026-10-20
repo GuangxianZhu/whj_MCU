@@ -18,7 +18,7 @@ def beep(i, a, b, want, purpose, cause):
     return dict(id=i, k='beep', w='断电', p=f'{a} ↔ {b}', want=want, e='响' if want else '不响', g=purpose, cause=cause)
 def ohm(i, a, b, lo, hi, show, purpose, cause):
     return dict(id=i, k='ohm', w='断电', p=f'{a} ↔ {b}', lo=lo, hi=hi, e=show, g=purpose, cause=cause)
-def volt(i, w, red, rng, purpose, cause, black='V3 −', show=None):
+def volt(i, w, red, rng, purpose, cause, black='V1 −', show=None):
     return dict(id=i, k='v', w=w, p=f'红 {red}，黑 {black}', lo=rng[0], hi=rng[1],
                 e=show or f'{rng[0]:g}–{rng[1]:g} V', g=purpose, cause=cause)
 
@@ -27,7 +27,7 @@ D = '（详细见分级检查 {}）'
 
 sec('1', '电源', '第 1 步：电源和电阻',
     '先断电测前两项，再上电测电压。舵机线先从排针上拔掉。', [
-    beep('1.1', 'V1 −', 'V3 −', True, '外部电源和 MCU 共地。没有共地，任何信号都没有参考电平。', 'P1 没接通，通信一定失败。'),
+    beep('1.1', 'MCU 的 GND 针', 'V1 −', True, '外部电源和 MCU 共地（M2）。没有共地，任何信号都没有参考电平。', 'M2 没接通，或插到了 V3 −：所有 GND 都要接 V1 −。'),
     yn('1.2', '断电', 'R2（14K ↔ 16K）和 R3（6B ↔ 9B）都是 100k（棕 黑 黄），R1（4G ↔ 4F）是 10k（棕 黑 橙）',
        '三颗电阻没有插错。之前 B1 只有 3.5V，就是 R3 插成了 10k。', '换成正确阻值。'),
     volt('1.3', '上电', 'V1 +', V5, '外部 5V 正常。', '电源电压不对，或 E1 接触不良。', black='V1 −'),
@@ -52,7 +52,7 @@ sec('2', '回环', '第 2 步：一次测完整条通路',
 ], after='三项都对：跳过第 3 步，直接做第 4 步。有不对的：做第 3 步。')
 
 sec('3', '定位', '第 3 步：逐段定位（只在第 2 步不对时做）',
-    'S7 插着，舵机线拔着。DIR 用你的 DIR 口切换。<b>TX 接地</b>那两项要临时把 S3 从 17B 拔出来，17下 的空孔接一根线到 V3 −，测完插回。', [
+    'S7 插着，舵机线拔着。DIR 用你的 DIR 口切换。<b>TX 接地</b>那两项要临时把 S3 从 17B 拔出来，17下 的空孔接一根线到 V1 −，测完插回。', [
     volt('3.1', 'DIR = 0', '4下（DATA）', H5, '总线空闲时是高电平。', 'DATA 被拉低：S8 接错，或 241 方向插反。' + D.format('3.19')),
     volt('3.2', 'DIR = 0', '16下（A2 → MCU RX）', V33, '接收通路的空闲高电平一路传到了 MCU。', '查 S9、S5，以及 R2。' + D.format('3.20')),
     volt('3.3', 'DIR = 1', '15上（B1）', H5, 'DIR = 1 的高电平够高，241 能识别。约 4.8V 是正常的。',
@@ -78,7 +78,7 @@ sec('4', '舵机', '第 4 步：接上舵机',
 
 MODES = [
     ('DIR = 0 / 1', '用你程序里的 DIR 口手动切换。'),
-    ('TX 接地', '把 S3 从 17B 拔出来，17下 的空孔接一根线到 V3 −。只接 V3 −，不要接任何 5V 的孔，测完插回 17B。'),
+    ('TX 接地', '把 S3 从 17B 拔出来，17下 的空孔接一根线到 V1 −。只接 V1 −，不要接任何 5V 的孔，测完插回 17B。'),
     ('自动切 DIR', '只有 4.3 需要改程序：MCU 把 PC 发来的字节转给舵机时，先 DIR = 1，最后一个字节发完、“发送完成”（TC）置位后立刻 DIR = 0。见下方“4.3 要加的程序”。'),
 ]
 SYMPTOMS = [
@@ -109,7 +109,7 @@ def render_md(out):
          '', '',
          '## 记号', '',
          '- **6下**：第 6 列槽下方（A–F 行）的任意一个孔或针；**6上**：槽上方（G–L 行）。',
-         '- **V1 +、V1 −**：外部 5V 和 GND；**V3 −**：MCU 的 GND。电压项黑表笔默认放 V3 −。']
+         '- **V1 +、V1 −**：外部 5V 和 GND。所有 GND 都接 V1 −，V3 不用。电压项黑表笔默认放 V1 −。']
     L += [f'- **{a}**：{md(b)}' for a, b in MODES]
     L.append('')
     for s in S:

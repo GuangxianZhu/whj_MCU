@@ -7,6 +7,7 @@ check_wiring.py — 自动核对面包板接线清单和电路图是否一致。
   2. 按这块面包板的连通规则，把每个孔归到一个“导通节点”：
        - 同一列、槽下方 A–F 的 6 个孔相通；同一列、槽上方 G–L 的 6 个孔相通；
        - 每条电源轨（V1 +、V1 −、V3 +、V3 −）整条相通（上电前检查第 1 步要实测确认）。
+         V3 现在不用：所有 GND 都接 V1 −。
   3. 放上芯片、排针，再按清单把导线和电阻电容接上，用并查集算出实际的网络。
   4. 和下面 REFERENCE（照电路图写的网络表）逐个网络比对：
        - 每个网络的所有引脚必须连在一起（不能漏接）；
@@ -277,9 +278,9 @@ def selftest():
 
     cases = [
         ("TX 线接到 RX 的列（交叉接错）", lambda it: it[0] == "S3" and not it.__setitem__(3, "16C")),
-        ("漏掉 P1（两边的地没接通）", lambda it: it[0] == "P1" and not it.__setitem__(3, "V1N:K")),
+        ("MCU 的地插到了 V3 −（没接到 V1 −，两边的地不通）", lambda it: it[0] == "M2" and not it.__setitem__(3, "V3N:B")),
         ("R1 插错一列（一头悬空）", lambda it: it[0] == "R1" and not it.__setitem__(2, "2G")),
-        ("电解电容 C4 正负接反", lambda it: it[0] == "C4" and not (it.__setitem__(2, "V1N:B"), it.__setitem__(3, "V1P:B"))),
+        ("电解电容 C4 正负接反", lambda it: it[0] == "C4" and not it.__setitem__(slice(2, 4), [it[3], it[2]])),
         ("两样东西插进同一个孔", lambda it: it[0] == "P10" and not it.__setitem__(2, "16B")),
         ("5V 和 3.3V 短路（3.3V 插到了槽上方）", lambda it: it[0] == "M1" and not it.__setitem__(3, "14J")),
         ("B4 的接地线插到了 A4 那一列", lambda it: it[0] == "P10" and not it.__setitem__(2, "18B")),
