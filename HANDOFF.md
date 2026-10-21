@@ -75,6 +75,9 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | ID 1 改为 2 / 3 | `FF FF FD 00 01 06 00 03 07 00 02 BD 63` / `… 07 00 03 B8 E3` |
 | ping 2 | `FF FF FD 00 02 03 00 01 19 72` |
 | Sync Write：ID 1 → 1024，ID 2 → 3072 | `FF FF FD 00 FE 11 00 83 74 00 04 00 01 00 04 00 00 02 00 0C 00 00 13 0C` |
+| Torque 开 / 关 | `FF FF FD 00 01 06 00 03 40 00 01 DB 66` / `… 40 00 00 DE E6` |
+| Goal Position 2048 / 3072 / 1024（90° = 1024） | `FF FF FD 00 01 09 00 03 74 00 00 08 00 00 42 89` / `… 0C 00 00 11 09` / `… 04 00 00 B2 89` |
+| 写入的正常应答（ID 1） | `FF FF FD 00 01 04 00 55 00 A1 0C` |
 | Sync Read 两个当前位置 | `FF FF FD 00 FE 09 00 82 84 00 04 00 01 02 CE FA` |
 
 正常 ping 应答：`FF FF FD 00 01 07 00 55 00 B0 04 xx CRC CRC`（14 字节，B0 04 = 型号 1200 / XL330-M288）。新的包用 `python tools/dxl_packet.py …` 生成（和固件 `dxl_crc16` 结果一致），不要手算。
