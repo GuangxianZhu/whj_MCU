@@ -31,6 +31,10 @@ ERR_BITS = {1: "Result Fail", 2: "Instruction Error", 3: "CRC Error", 4: "Data R
             5: "Data Length Error", 6: "Data Limit Error", 7: "Access Error"}
 
 
+# model numbers (address 0) from the ROBOTIS e-Manual
+MODELS = {1190: "XL330-M077", 1200: "XL330-M288", 1210: "XC330-T181", 1220: "XC330-T288", 1080: "XC430-T240BB"}
+
+
 def crc16(data: bytes) -> int:
     crc = 0
     for b in data:
@@ -122,7 +126,8 @@ def parse(text: str):
             if params:
                 print(f"  data: {hexs(params)}")
                 if len(params) == 3:
-                    print(f"  ping reply: model {params[0] | params[1] << 8} (1200 = XL330-M288, 1190 = XL330-M077), firmware {params[2]}")
+                    model = params[0] | params[1] << 8
+                    print(f"  ping reply: model {model} ({MODELS.get(model, 'unknown model')}), firmware {params[2]}")
                 if len(params) == 4:
                     v = int.from_bytes(params, "little", signed=True)
                     print(f"  as a 4-byte value: {v}  (position: 0..4095 = one turn, 2048 = centre)")
