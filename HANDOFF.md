@@ -36,7 +36,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - 用户原来的程序：一个手动切换 DIR（1/0）的口，PC 串口助手用 HEX 手动发数据。
 - 已写好转发固件 `firmware/bridge/`（按包转发 PC 的数据、自动切 DIR、应答原样回 PC），用户要把 `bridge_main_template.c` 里的 TODO 换成 KM1M7C 的 SDK 调用（两个 UART、DIR GPIO、SysTick）。用户提供 SDK 例程或现有 UART 代码时，可以帮他填。
 - GND 全部接 V1 − 以后，一个舵机的通信恢复稳定（2026-10-20）。
-- 下一步：接第二个舵机，按 `docs/两个舵机.md`：先单独把第二个改成 ID 2，再串起来做 T1–T8 测试；两个同时用力时电源要 3 A 以上，舵机电源最好不走面包板。
+- **下一步（2026-10-23 起）：接两个 XC330**，按 `docs/两个XC330.md`：先单独把新舵机改成 ID 2（推荐 U2D2 + Wizard 改地址 7；也可用 M7C 发 HEX），再两个挂到 PHB（菊花链或都插 PHB），做 T1–T11 测试。电源问题已由 PHB 解决（舵机电流不走面包板），面包板、固件、`dxl_example2.c` 都不用改。原来的 `docs/两个舵机.md` 是按 5V XL330 写的，电源部分不再适用。用户还没开始做。
 - **2026-10-21 新方向**：用户要换成 12V 的 XC330，配 U2D2 Power Hub Board（PHB）。方案在 `docs/XC330_12V接入方案.md`：工作一 PC → U2D2 → PHB → XC330（Dynamixel Wizard 确认）；工作二拔掉 U2D2，M7C 面包板电路按现状一根不改，PHB 来的 3P 线只接 GND（第 2 列）和 DATA（第 4 列），**VDD 12V 不接面包板**。XC330-T181/T288 规格 6.5–12.0V（推荐 11.1V），型号 1210（`BA 04`）/ 1220（`C4 04`）；协议、ID、波特率、常用地址和 XL330 一样，固件不用改。**用户 2026-10-21 告知：工作一、工作二都已通过，和文档描述一致，没有意外**——M7C 面包板（电路未改）经 PHB 驱动 12V XC330-T288 成功，Torque 开关、转 90° 回 90° 正常。逐步操作在 `docs/XC330_一步一步.md`（含 5V/12V 共存的安全说明、6.5 步的 Torque/90° 数据包）。5V 外部电源现在只给逻辑供电（不到 10mA），限流建议 100mA；以后再用 XL330 时要调回 2A 以上。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
@@ -57,6 +57,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `firmware/流程图.md` | 固件流程图（mermaid）：main()、dxl_txrx()、PC 转发 + 自动切 DIR |
 | `firmware/bridge/` | 转发固件：`bridge.c/.h`、`bridge_port.h`（PC 写和毫秒时钟两个函数）、`bridge_main_template.c`（填 TODO 的模板）；测试 `firmware/test/bridge_test.c` |
 | `firmware/dxl/dxl_example2.c` | 两个舵机的示例（Sync Write / Sync Read） |
+| `docs/两个XC330.md` | **现在用这份**：两个 XC330（12V + PHB）的改 ID 两种方法、接法、T1–T11 测试包、风险 |
 | `docs/两个舵机.md` | 接第二个舵机的调研、电源、改 ID 步骤、测试 T1–T8 |
 | `docs/XC330_一步一步.md` | 工作一/工作二逐步操作：每步做什么、应该看到什么、不对怎么办；开头是 5V 和 12V 共存的安全说明 |
 | `docs/XC330_12V接入方案.md` | 换 12V XC330 + U2D2 PHB 的两步方案、上电前检查、风险清单；在线文档版 https://claude.ai/artifact/AKvfTH3vZYcGBR34J9DmCg |
