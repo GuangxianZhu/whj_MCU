@@ -62,6 +62,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `firmware/dxl/dxl_example2.c` | 两个舵机的示例（Sync Write / Sync Read） |
 | `docs/两个XC330.md` | **现在用这份**：两个 XC330（12V + PHB）的改 ID 两种方法、接法、T1–T11 测试包、风险 |
 | `docs/一根手指.md` | **当前任务**：3 个 XC330（ID 0/1/2）一根手指，时间型曲线、认方向、手势 HEX 包（张开/半握/握紧/钩/卷）、以后装实物的位置限制和电流控制 |
+| `docs/ID3_左右转.md` | ID 3 用位置模式左转右转的 HEX 包（先看动作，再做腱绳确认） |
 | `docs/腱绳收紧确认.md` | ID 3 指尖 XC330 腱绳：模式 5 限力、找 P0、逐步收紧记表、反复测试、Goal Position 表 |
 | `tools/gen_tendon_doc.py` | 生成上面这份 |
 | `tools/gen_finger_doc.py` | 生成 `docs/一根手指.md`（所有包由 dxl_packet.py 算） |
