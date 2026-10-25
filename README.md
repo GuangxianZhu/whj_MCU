@@ -10,6 +10,8 @@ PC ──USB── KM1M7C (3.3V IO) ⇄ TXB0104 (3.3V↔5V) ⇄ 74LVC2G241 (5V, 
 
 换新对话继续做时，先让 Claude 读 [`HANDOFF.md`](HANDOFF.md)。
 
+**现在的任务（腱绳手指）先看 [`docs/路线图_腱绳手指.md`](docs/路线图_腱绳手指.md)**：要懂的概念、流程、每一步对应哪个文件、哪些文件已经可以不看。
+
 
 1. **硬件**：[`docs/breadboard/README.md`](docs/breadboard/README.md)。电路图、按实际面包板画的布局、逐根接线清单、上电前检查、物料、排查表。交互版是 [`docs/breadboard/xl330_breadboard.html`](docs/breadboard/xl330_breadboard.html)，下载后用浏览器打开，可以逐根打勾、点一行高亮对应的线。
 2. **软件**：[`firmware/README.md`](firmware/README.md)。DYNAMIXEL Protocol 2.0 驱动，移植到 KM1M7C 只需实现 5 个函数（DIR 引脚和 UART），附第一次通信测试流程和电脑上可跑的单元测试。
