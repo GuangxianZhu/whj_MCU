@@ -46,6 +46,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-10-26 调研 ORCA Hand（`orcahand/orca_core`，MIT）**：总结在 `docs/ORCA软件调研.md`。ORCA v2 用的就是 XC330-T288-T、每关节一个舵机两根线、模式 5，和 B 方案同结构。可用：撞限位自动标定（m = m_min + ρ(θ−θ_min)）、预紧判断（行程变短/电流偏高 = 太紧）、XC330 电流参考（默认 300 mA）、手势用 ROM 百分比。给了 A/B/C 三个方向。
 - **2026-10-26 用户告知：也有 17 个电机，手腕和手指买的和 ORCA 一样，用 KM1M7C 当 U2D2。** 主线改为直接跑 orca_core：根目录 `Start-ORCA.bat`（更新仓库 → 下载/更新 orca_core 到 `tools/orca/orca_core` → uv 环境 → 首次生成 `tools/orca/my_hand/config.yaml` → 菜单：扫描/设 ID/预紧/标定/中立/手动）；配置由 `tools/orca/make_config.py` 写死 `port`、`motor_type`、`baudrate`（= 固件舵机侧波特率，USB 虚拟串口不管波特率）。转发固件 `bridge.h` 缓冲区已加大（MAX_PACKET 320、PC_RX 1024、REPLY 1024）以容纳 17 舵机的包。57600 下 17 舵机 Sync Read 约 70 ms，离 SDK 超时约 96 ms 偏紧；以后改 1 Mbps。说明在 `docs/ORCA软件调研.md` 第 3 节。还没在实物上试；用户还没说零件是 v2.0 还是 v2.1；ID 要按 ORCA 改成 1–17。
 - **2026-10-26 用户告知：安装方式（机械、腱绳、手腕）也和 ORCA 一样。** 调研了 orca_core 全部脚本和网页控制台 `orca_ui`，按设定类/控制类整理在 `docs/ORCA软件调研.md` 第 4 节；`Start-ORCA.bat` 菜单扩成 1–8 设定、11–20 控制、W 网页控制台（`orca-ui --config`）；新增示例 `tools/orca/finger_wrist_example.py`（只核对过 API，没运行过）。手腕是 XC430、模式 4、皮带、无电流控制。
+- **2026-10-26 用户告知：自己写了透传固件并在自己电脑上试成功**——KM1M7C 上 UART5（PC）⇄ UART2（舵机），GPIO 控制 TXEN，逐字节透传（不是 `firmware/bridge/`）。要点：菜单 2 会把舵机 Return Delay（地址 9）设成 20 µs，TXEN 必须在最后停止位后 20 µs 内回 0（用 TC 标志）；两方向都转；UART5/UART2 同波特率。说明在 `docs/ORCA软件调研.md` 第 3 节。只接 1 个舵机自检时 ID 要是 1 或 17。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
