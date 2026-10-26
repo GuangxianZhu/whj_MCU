@@ -178,7 +178,89 @@
 
 之前推荐的是“只借思路”。既然零件和 ORCA 一模一样，现在**主线改成直接跑 orca_core**（原方向 C），只把 U2D2 换成 KM1M7C。手工发 HEX（原方向 A）留作 KM1M7C 固件还没跑通时的备用。
 
-## 4. 关键文件索引（以后要细看时）
+## 4. 设定类和控制类程序一览（2026-10-26 更新：安装方式和 ORCA 一样）
+
+用户告知：我们的安装（机械结构、腱绳、手腕）和 ORCA 一样，所以下面这些程序**原样就能用**，只要换成我们的 config.yaml（`Start-ORCA.bat` 自动处理）。“菜单”一栏是 `Start-ORCA.bat` 里的编号。
+
+调研范围：`orcahand/orca_core`（命令行程序 + Python 库，2026-10-23 版）和 `orcahand/orca_ui`（网页控制台，2026-10-21 版），都是 MIT 许可证。
+
+### 4.1 设定类（装好以后第一次用、以后保养）
+
+| 菜单 | 程序 | 做什么 | 手指 / 手腕 | 我们能不能用 |
+|---|---|---|---|---|
+| 1 | `configure_motor_chain.py --scan` | 扫描总线，列出所有能应答的舵机（ID、型号） | 都有 | 能。波特率一栏不准（见第 3 节） |
+| 2 | `configure_motor_chain.py` | **新手装机**：一次插一个舵机，自动改成 ID 1–17，设 Return Delay；中断了可以接着做 | 都有 | 能。波特率按 config 写死的 57600 |
+| 3 / 4 | `check_motor.py --motor-id N` / `--wrist` | 让一个舵机在当前位置附近小幅来回转，确认它能动、能拉动腱绳 | 手指 / 手腕 | 能 |
+| 5 | `tension.py` | 预紧：舵机先把线拉直，再原地顶住，人用棘轮扳手拧上面的卷线轮，拧完按 Ctrl+C | 只有手指（手腕是皮带，不用） | 能 |
+| 6 | `calibrate.py` | 自动标定：按 config 的 16 步顺序把每个关节撞到两头限位，存进 `calibration.yaml`。可以加 `--fingers index` 或 `--joints index_mcp` 只标一部分 | 都有 | 能 |
+| 7 | `calibrate.py --joints wrist --force-wrist` | 只重新标定手腕（手腕标过一次以后默认跳过） | 手腕 | 能 |
+| 8 | `setup.py` | **整套装机向导**：预紧 → 标定，重复 3 轮，中间做 1 分钟开合测试，最后检查 | 都有 | 能，推荐新装好时用 |
+| — | `measure_travel.py` | 量每个关节两限位之间舵机转了多少度，存成基准（以后标定时用来发现“线太紧、没走到头”） | 都有 | 只对 v2.1 有意义 |
+| — | `guided_tension.py` | 有引导的预紧：反复“回中 → 查行程 → 拧紧”直到每根线都合格 | 手指 | 只有 v2.1 |
+| — | `check_sensors.py`、`monitor_sensors.py`、`check_encoder_signs.py`、`detect.py` | 关节编码器、指尖触觉、ORCA 控制板的检查 | — | **用不上**：我们没有 ORCA 控制板和这些传感器 |
+
+### 4.2 控制类（标定以后动手和手腕）
+
+| 菜单 | 程序 | 做什么 |
+|---|---|---|
+| 11 | `neutral.py` | 回到 config 里的中立姿势（`neutral_position`） |
+| 12 | `zero.py` | 所有关节回 0° |
+| 13 | `manual_control.py` | 电脑上的滑条，**每个关节一个**（含手腕），带扭矩开关 |
+| 14 | `manual_control.py --motor-space` | 滑条**每个舵机一个**，只在当前位置附近小范围动；不需要标定，调腱绳时用 |
+| 15 | `main_demo.py --demo main` | 演示：张开 → 握拳 → 捏，循环 3 次 |
+| 16 | `main_demo.py --demo abduction` | 演示：手指张开/并拢 |
+| 17 | `stress_test.py` | 张开/握拳反复循环，同时看舵机温度（检查散热、过载） |
+| 18 | `record_angles.py` | **示教**：扭矩关掉，用手摆好姿势，按 Enter 记一个点，存成 yaml |
+| 19 | `replay_angles.py` | 回放上面记的点（可以循环、平滑过渡） |
+| — | `record_continuous.py` / `replay_continuous.py` | 连续录制/回放（按频率记录，而不是一个点一个点） |
+| 20 | `tools/orca/finger_wrist_example.py`（**我们自己的**） | 最小示例程序：食指弯曲 → 手腕左右 → 握拳（用 ROM 百分比）→ 读回角度 → 回中立。自己写程序时复制这个改 |
+
+### 4.3 网页控制台 orca_ui（菜单 W）
+
+一个浏览器里的图形界面（`http://localhost:5001`），把上面大部分功能做成了按钮，还多了：
+- **Dashboard / 3D View**：实时 3D 手模型，跟着真手动；舵机健康状态一眼看到；右上角红色 **E-STOP**（停止一切、关扭矩）。
+- **Setup**：预紧、标定的向导页面（手腕可以单独勾选重标）。
+- **Poses**：预设姿势、录制和回放轨迹、编辑路点。
+- **Motors**：每个舵机的温度、电流实时曲线；控制参数（PID、速度曲线）可以边回放边调。
+- **Teleop**（还没做完）：用摄像头（MediaPipe）、手套、Apple Vision Pro 遥控。
+- **MCP 服务器** `orca-ui-mcp`：让 Claude Code 这类 AI 直接读状态、摆姿势（有安全确认）。
+
+我们怎么用：`Start-ORCA.bat` 用 `--config` 把我们的 config.yaml 交给它，里面写死了 COM 口，所以它不会去找 U2D2（源码 `orca_ui/hand/detection.py` 的 `_overrides`：config 里写了 port 就直接用，确定）。
+
+注意：
+- orca_ui 自带一份 PyPI 上的 orca_core（要求 0.10.x），和菜单 1–20 用的 `tools/orca/orca_core` 是**两份**，标定文件都存在 `tools/orca/my_hand/` 里共用。
+- orca_ui 的 **`--bare` 模式**（裸舵机扫描、改 ID/波特率）**不要通过 KM1M7C 用**：它默认按 1M 扫描、可以改舵机波特率，和第 3 节说的问题一样。改 ID 用菜单 2。
+- 57600 下控制频率约 10 Hz，网页里的 3D 跟随和实时曲线会有点卡，功能不受影响（推测）。
+
+### 4.4 手腕要特别注意的地方（源码确定）
+
+- 手腕舵机是 **XC430**（`constants.py`：Dynamixel 手腕 XC430、手指 XC330），用**皮带**传动，不是腱绳。
+- 手腕用**扩展位置模式**（Operating Mode 4，可以转多圈），手指用模式 5（电流限制位置）。程序自动设置。
+- XC430-T240BB-T **没有 Goal Current 寄存器**（代码里 `MODELS_WITHOUT_CURRENT_CONTROL = {1080}`），不能用电流限力；标定时改用限制 PWM 输出（`WRIST_PWM_RETRY_SCALE`），超过基准行程会放弃，降低 PWM 再试。
+- 手腕标定一次以后会记 `wrist_calibrated: true`，以后默认跳过；装拆过皮带要用菜单 7 重标。
+- 右手配置里手腕是 ID 1，`-1` 表示方向反；关节范围 −65°～35°。
+
+### 4.5 自己写程序用到的 Python 函数
+
+都在 `OrcaHand` 上（`base_hand.py`、`hardware_hand.py`），示例见 `tools/orca/finger_wrist_example.py`：
+
+| 函数 | 用途 |
+|---|---|
+| `load_hand(config_path=...)` / `load_hand(mock=True)` | 建一只手（真的 / 模拟的） |
+| `connect_hand(hand)`（`orca_core.utils.cli`） | 连接；第一次会问硬件版本 2 / 21 |
+| `hand.init_joints()` | 没标定就先标定，然后回中立 |
+| `hand.set_joint_positions({"wrist": -30, "index_mcp": 80}, num_steps=50, step_size=0.02)` | 关节角（度）；自动夹到 ROM 以内；分 50 步平滑走 |
+| `hand.pose_from_fractions({...})` | 用 ROM 百分比生成姿势 |
+| `hand.get_joint_position().as_dict()` | 读当前关节角 |
+| `hand.set_neutral_position()` / `set_zero_position()` | 回中立 / 回 0 |
+| `hand.enable_torque()` / `disable_torque()` / `set_max_current(300)` | 扭矩开关、电流上限 |
+| `hand.get_motor_temp()` / `get_motor_current()` | 温度、电流 |
+| `hand.tension()` / `hand.calibrate()` | 在自己的程序里调用预紧、标定 |
+| `orca_core/api/api.py` | 现成的 HTTP 接口（FastAPI）：`/connect`、`/joints/position`、`/calibrate` 等，别的语言也能控制 |
+
+> 示例程序只对照源码核对过函数名和参数，**没有运行过**（这边不能安装下载的包）。第一次建议先在你电脑上跑 `--mock`（模拟手，不用硬件）：`uv run --project tools\orca\orca_core python tools\orca\finger_wrist_example.py --mock`。
+
+## 5. 关键文件索引（以后要细看时）
 
 | 文件 | 内容 |
 |---|---|
@@ -194,4 +276,5 @@
 
 来源：
 - https://github.com/orcahand/orca_core
+- https://github.com/orcahand/orca_ui
 - https://arxiv.org/html/2504.04259v2
