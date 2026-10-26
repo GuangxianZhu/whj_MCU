@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+tools/orca/orca_core/
+tools/orca/my_hand/

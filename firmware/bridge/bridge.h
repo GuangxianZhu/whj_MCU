@@ -21,10 +21,12 @@
 #include <stdint.h>
 
 /* ---- settings (change here) ---- */
-#define BRIDGE_MAX_PACKET        128   /* biggest packet accepted from a source       */
+#define BRIDGE_MAX_PACKET        320   /* biggest packet accepted from a source; 17-servo
+                                          Sync Write of a 12-byte block is 235 bytes      */
 #define BRIDGE_QUEUE_LEN           4   /* packets waiting for the bus                 */
-#define BRIDGE_PC_RX_BUF         256   /* ring buffer for bytes from the PC (power of 2) */
-#define BRIDGE_REPLY_BUF         512   /* all reply bytes of one transaction           */
+#define BRIDGE_PC_RX_BUF        1024   /* ring buffer for bytes from the PC (power of 2) */
+#define BRIDGE_REPLY_BUF        1024   /* all reply bytes of one transaction (17-servo
+                                          Sync Read of 12 bytes is 391 bytes)             */
 #define BRIDGE_PC_GAP_MS          20   /* max gap between bytes inside one PC packet   */
 #define BRIDGE_FIRST_BYTE_MS      10   /* wait this long for a servo to start replying */
 #define BRIDGE_QUIET_MS            3   /* reply is over after this much silence        */
