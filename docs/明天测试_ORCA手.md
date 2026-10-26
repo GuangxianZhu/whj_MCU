@@ -1,14 +1,15 @@
-# 明天让 ORCA 手动起来：一页纸步骤
+# 明天让 ORCA 手动起来：一页纸步骤（官方命令版）
 
 目标：**手能动、能演示握拳**。不追求完美，不碰固件。
+全部用 **ORCA 官方的 orca_core**，按官方 README 的命令来，不用 Claude 写的 `Start-ORCA.bat`。
 
-**已确认（2026-10-26）**：U2D2 在手边；舵机 ID 已设好 1–17（**跳过菜单 2**）；版本 **v2.0**（程序问硬件版本时选 **2**）；**波特率 57600**（config 填 57600，不用改）。
+**已确认（2026-10-26）**：U2D2 在手边；舵机 ID 已设好 1–17；版本 **v2.0**（程序问硬件版本时输入 **2**）；舵机波特率 **57600**。
 
 ## 先记住三件事
 
-1. **用 U2D2，不用 KM1M7。** U2D2 是 ORCA 官方的接法，软件直接支持；KM1M7 留到以后。
-2. **官网的软件能用**：`orca_core`（命令行程序）和 `orca_ui`（网页控制台），都免费（MIT）。已经装进 `Start-ORCA.bat`，双击就有菜单，不用自己敲命令。
-3. **急停**：任何时候不对劲 → 在黑窗口按 **Ctrl+C**；还不行 → **拔 12V 电源**。电源插头放在手边。
+1. **用 U2D2，不用 KM1M7。** 官方接法，程序自己能找到 U2D2（认它的 USB 厂商号 `0403`），波特率也自动扫。
+2. **每条命令都在 `orca_core` 文件夹里运行**，开头都是 `uv run python`。
+3. **急停**：命令行窗口按 **Ctrl+C**；还不行 → **拔 12V 电源**。电源插头放在手边。
 
 ## 接线
 
@@ -25,50 +26,73 @@
 
 | 步骤 | 做什么 | 应该看到 |
 |---|---|---|
-| A | 装 Git for Windows（装过就跳过） | — |
-| B | 装 uv：PowerShell 里运行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"`，关掉重开 | `uv --version` 有输出 |
-| C | `git clone https://github.com/GuangxianZhu/whj_MCU`，双击 `Start-ORCA.bat` | 自动下载 orca_core、装环境，然后问 COM 口 |
-| D | 这时还没接手也可以：随便输入 `COM9`、`right`、`57600`，看到菜单就说明软件装好了；以后按 `C` 改成真的 COM 口 | 出现菜单 |
+| A | 装 Git for Windows（装过就跳过） | `git --version` 有输出 |
+| B | 装 uv：PowerShell 里运行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 \| iex"`，关掉窗口重开 | `uv --version` 有输出 |
+| C | 打开“命令提示符”（cmd），运行下面三行 | 最后一行装完没有红色报错 |
+| D | U2D2 延迟改 1 ms（见下） | — |
 
-> 波特率为什么填 57600：舵机出厂就是 57600，以后换 KM1M7 也是 57600，前后一致，不用改舵机。U2D2 支持 57600。
+```
+git clone https://github.com/orcahand/orca_core
+cd orca_core
+uv sync
+```
 
-## 明天测试（按顺序，每步通过再做下一步）
+**D. U2D2 延迟改 1 ms**（ORCA 官方 Windows 说明）：设备管理器 → 端口（COM 和 LPT）→ USB Serial Port (COMx) → 属性 → Port Settings → Advanced → Latency Timer 改成 **1** → OK，拔插一次 U2D2。默认 16 ms，57600 下 17 个舵机一起读容易超时。找不到这个选项就先跳过，出现超时报错再回来改。
 
-| # | 菜单 | 做什么 | 应该看到 | 不对怎么办 |
+## 明天测试
+
+每次打开新的 cmd 窗口，先运行这两行（以后的命令都用 `%CFG%` 代替那串很长的路径）：
+
+```
+cd orca_core
+set CFG=orca_core\models\v2\orcahand-right\config.yaml
+```
+
+左手就把 `right` 换成 `left`。
+
+然后按顺序，每步通过再做下一步：
+
+| # | 命令（复制粘贴） | 做什么 | 应该看到 | 不对怎么办 |
 |---|---|---|---|---|
-| 0 | — | **U2D2 的延迟设成 1 ms**（ORCA 官方 Windows 说明）：设备管理器 → 端口（COM 和 LPT）→ USB Serial Port (COMx) → 属性 → Port Settings → Advanced → Latency Timer 改成 **1** → OK。默认 16 ms，57600 下 17 个舵机一起读时容易超时 | 改好后拔插一次 U2D2 | 找不到这个选项 → 先跳过，出现超时报错再回来改 |
-| 1 | `C` | 输入 U2D2 的 COM 口（菜单会列出所有串口，U2D2 显示 VID `0403`）、`right`（左手就 `left`）、`57600` | 写好 config.yaml | 找不到串口 → 换 USB 口、装 FTDI 驱动 |
-| 2 | `1` 扫描 | **只读**，列出总线上所有舵机 | 17 个，ID 1–17，型号 XC330-T288-T（手腕 XC430）；**看波特率那一栏** | 波特率是 1000000 → 按 `C`，波特率改填 `1000000` 再继续（ORCA 官方设 ID 时会改成 1M）。是 57600 → 不用改 |
-| 3 | `4` | 手腕小幅来回转 | 手腕动一点点 | 不动 → 看电源、皮带 |
-| 4 | `3` | 输入 2（食指 PIP），小幅来回转 | 食指动一点点 | 方向/幅度不对先记下来 |
-| 5 | `5` 预紧 | 舵机把线拉直后顶住；用棘轮扳手**顺时针**拧每个舵机上面的卷线轮，听到咔哒，线**紧但不硬**就停；完成按 Ctrl+C | 每根线都不松 | 别拧过头 |
-| 6 | `6` 标定 | 自动把每个关节推到两头的限位（16 步），约几分钟 | 每个关节弯到底、伸到底 | 某个关节没动 → 记下名字，Ctrl+C 停 |
-| 7 | — | 第 5、6 步**再做 1–2 次**（新装的手第一次标定后线会松，官方说明就是这样） | 第二次以后不再出现松线 | — |
-| 8 | `11` | 回中立姿势 | 手自然张开 | — |
-| 9 | `15` | **演示：张开 → 握拳 → 捏**，3 次 | 给领导看这个 | — |
-| 10 | `W` | （可选）浏览器网页控制台：3D 手模型、滑条、急停按钮 | 浏览器打开 localhost:5001 | 卡了就关掉，用第 9 步就够 |
+| 1 | `uv run python scripts\configure_motor_chain.py %CFG% --scan` | **只读**，扫描总线上所有舵机（会扫好几种波特率，要等一会儿） | ID 1–17 共 17 个，波特率 57600，手指 XC330-T288-T、手腕 XC430 | 见下面“扫描结果怎么看” |
+| 2 | `uv run python scripts\check_motor.py %CFG% --wrist` | 手腕小幅来回转。第一次会问硬件版本 → 输入 **2** | 手腕动一点点 | 不动 → 看电源、皮带 |
+| 3 | `uv run python scripts\check_motor.py %CFG% --motor-id 2` | 食指 PIP（ID 2）小幅来回转 | 食指动一点点 | 记下现象 |
+| 4 | `uv run python scripts\tension.py %CFG%` | 预紧：舵机把线拉直后顶住；用棘轮扳手**顺时针**拧每个舵机**上面**的卷线轮，听到咔哒，线**紧但不硬**就停；全部拧完按 Ctrl+C | 每根线都不松 | 别拧过头 |
+| 5 | `uv run python scripts\calibrate.py %CFG%` | 自动标定：每个关节推到两头的限位（16 步，含手腕），几分钟 | 每个关节弯到底、伸到底 | 某个关节没动 → 记下名字，Ctrl+C 停 |
+| 6 | 第 4、5 步**再做 1–2 次** | 新装的手第一次标定后线会松（官方说明就是这样） | 第二次以后不再出现松线 | — |
+| 7 | `uv run python scripts\neutral.py %CFG%` | 回中立姿势 | 手自然张开 | — |
+| 8 | `uv run python examples\main_demo.py %CFG%` | **演示：张开 → 握拳 → 捏**，3 次 | 给领导看这个 | — |
 
-> 这份步骤按 **ORCA v2**（17 个舵机、Dynamixel）写。如果买的是 v1，config 不一样（v1 默认 3 Mbps），先告诉 Claude。
+可以用一条命令代替第 4–6 步：`uv run python scripts\setup.py %CFG%`（官方装机向导：预紧 → 标定 3 轮，中间有开合测试，每步提示你按 Enter）。
 
-第一次运行第 3 步以后，程序会问**硬件版本**（2 或 21）：按买的零件选（订单或包装上写 v2.0 / v2.1）。实在不确定先选 **2**（Claude 的建议：v2.0 的流程假设更少）。
+其他可能用到的官方命令：
 
-也可以用 `8`（装机向导）代替第 5–7 步：它自动做“预紧 → 标定”3 轮，中间有开合测试，每一步会提示你按 Enter。
+| 命令 | 做什么 |
+|---|---|
+| `uv run python scripts\manual_control.py %CFG%` | 电脑上的滑条，每个关节一个（标定以后） |
+| `uv run python examples\main_demo.py %CFG% --demo abduction` | 演示：手指张开 / 并拢 |
+| `uv run python scripts\calibrate.py %CFG% --joints wrist --force-wrist` | 只重新标定手腕 |
+| `uv run python scripts\zero.py %CFG%` | 所有关节回 0° |
 
-### 扫描结果怎么看（第 2 步）
+### 扫描结果怎么看（第 1 步）
 
 | 看到 | 说明 | 做什么 |
 |---|---|---|
-| ID 1–17 全有 | 舵机已经设好 ID | 继续第 3 步 |
-| 只有 ID 1，或者一个都没有 | 舵机还是出厂 ID（全是 1，挤在一起会互相冲突） | 要用菜单 `2` 设 ID：**一次只插一个舵机**，程序提示插哪个就插哪个，它自动改。手已经装好时这一步比较费时间，留够时间 |
+| ID 1–17 全有 | 正常 | 继续第 2 步 |
 | 少了几个 | 那几个线没插好或没电 | 查那几根 3P 线 |
-| 同一个 ID 在好几个波特率下都出现 | 用 U2D2 时**不应该**出现 | 记下来，问 Claude |
+| 一个都没有 | U2D2 没认到，或者 12V 没开 | 看 USB、电源开关；设备管理器里有没有 USB Serial Port |
+| 有 ID 0 或 18 以上 | 有舵机 ID 不对 | 记下来，问 Claude（不要自己改） |
+
+### 可选：让连接快一点
+
+程序每次连接都会先试 1M、3M，再试其他波特率，最后才找到 57600。不影响使用，只是每次多等几秒。想省掉：用记事本打开 `orca_core\models\v2\orcahand-right\config.yaml`，在最上面加一行 `baudrate: 57600`，保存。
 
 ## 不要做的事
 
-- 不要运行 `configure_motor_chain.py --baudrate …`（会改舵机波特率）。
-- 不要用 orca_ui 的 `--bare` 模式改波特率。
+- 不要运行 `configure_motor_chain.py`（不带 `--scan`）：它是给新舵机设 ID 用的，我们的 ID 已经设好了。
+- 不要加 `--baudrate`（会改舵机波特率）。
 - 标定、预紧时手指附近不要放东西、不要用手挡。
 
 ## 给领导的一句话说明
 
-ORCA 手用的是官方开源软件 orca_core / orca_ui（ETH Zurich，MIT 许可证），通过 U2D2 控制 17 个 Dynamixel 舵机（手指 XC330、手腕 XC430）；完成预紧和自动标定后，可以按关节角或预设手势控制。下一步计划把 U2D2 换成我们自己的 KM1M7C 板。
+ORCA 手用的是官方开源软件 orca_core（ETH Zurich，MIT 许可证），通过 U2D2 控制 17 个 Dynamixel 舵机（手指 XC330、手腕 XC430）；完成预紧和自动标定后，可以按关节角或预设手势控制。下一步计划把 U2D2 换成我们自己的 KM1M7C 板。
