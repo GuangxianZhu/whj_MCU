@@ -3,7 +3,7 @@
 目标：**手能动、能演示握拳**。不追求完美，不碰固件。
 全部用 **ORCA 官方的 orca_core**，按官方 README 的命令来，不用 Claude 写的 `Start-ORCA.bat`。
 
-**已确认（2026-10-26）**：U2D2 在手边；舵机 ID 已设好 1–17；版本 **v2.0**（程序问硬件版本时输入 **2**）；舵机波特率 **57600**。
+**已确认（2026-10-26）**：**左手**；U2D2 在手边；舵机 ID 已设好 1–17；版本 **v2.0**（程序问硬件版本时输入 **2**）；舵机波特率 **57600**。
 
 ## 先记住三件事
 
@@ -61,40 +61,40 @@ uv run python scripts\calibrate.py %CFG% --joints wrist --force-wrist
 ```
 第一次运行会问硬件版本 → 输入 **2**。
 
-### 每个手指关节重复这 6 步（例：食指 MCP，ID 3）
+### 每个手指关节重复这 6 步（例：食指 MCP，左手是 ID 8）
 
 | # | 做什么 | 命令 | 应该看到 |
 |---|---|---|---|
-| 1 | 关 12V；通信线只接 ID 1 和 ID 3；按 ORCA 装配说明装好 ID 3 的腱绳 | — | — |
-| 2 | 开 12V，扫描 | `uv run python scripts\configure_motor_chain.py %CFG% --scan` | 只有 ID 1、3 |
-| 3 | 小幅试转（确认舵机能拉动这根线） | `uv run python scripts\check_motor.py %CFG% --motor-id 3` | 食指 MCP 轻微动 |
-| 4 | 预紧：舵机先把线拉直再顶住；用棘轮扳手**顺时针**拧 ID 3 **上面**的卷线轮，听到咔哒，线紧但不硬就停，按 Ctrl+C | `uv run python scripts\tension.py %CFG%` | 线不松 |
+| 1 | 关 12V；通信线只接 ID 1 和 ID 8；按 ORCA 装配说明装好 ID 8 的腱绳 | — | — |
+| 2 | 开 12V，扫描 | `uv run python scripts\configure_motor_chain.py %CFG% --scan` | 只有 ID 1、8 |
+| 3 | 小幅试转（确认舵机能拉动这根线） | `uv run python scripts\check_motor.py %CFG% --motor-id 8` | 食指 MCP 轻微动 |
+| 4 | 预紧：舵机先把线拉直再顶住；用棘轮扳手**顺时针**拧 ID 8 **上面**的卷线轮，听到咔哒，线紧但不硬就停，按 Ctrl+C | `uv run python scripts\tension.py %CFG%` | 线不松 |
 | 5 | 标定这一个关节 | `uv run python scripts\calibrate.py %CFG% --joints index_mcp` | 弯到底、伸到底各一次 |
 | 6 | **第 4、5 步再做一次**（第一次标定后线会松，官方说明就是这样），然后用滑条确认 | `uv run python scripts\manual_control.py %CFG%` | 拖 index_mcp 的滑条，手指跟着动，到两头不卡 |
 
 ### 进度表（建议按这个顺序：一根手指做完再做下一根）
 
-| ID | `--joints` 名称 | 关节（右手） | 腱绳装好 | 预紧 | 标定 ×2 | 滑条能动 |
+| ID | `--joints` 名称 | 关节（左手） | 腱绳装好 | 预紧 | 标定 ×2 | 滑条能动 |
 |---|---|---|---|---|---|---|
 | 1 | `wrist` | 手腕 | —（皮带，不用腱绳） | — | ☐ | ☐ |
-| 3 | `index_mcp` | 食指根部 MCP | ☐ | ☐ | ☐ | ☐ |
-| 2 | `index_pip` | 食指中间 PIP | ☐ | ☐ | ☐ | ☐ |
-| 4 | `index_abd` | 食指侧摆 | ☐ | ☐ | ☐ | ☐ |
-| 10 | `middle_mcp` | 中指 MCP | ☐ | ☐ | ☐ | ☐ |
-| 9 | `middle_pip` | 中指 PIP | ☐ | ☐ | ☐ | ☐ |
-| 5 | `middle_abd` | 中指侧摆 | ☐ | ☐ | ☐ | ☐ |
-| 7 | `ring_mcp` | 无名指 MCP | ☐ | ☐ | ☐ | ☐ |
-| 8 | `ring_pip` | 无名指 PIP | ☐ | ☐ | ☐ | ☐ |
-| 6 | `ring_abd` | 无名指侧摆 | ☐ | ☐ | ☐ | ☐ |
-| 12 | `pinky_mcp` | 小指 MCP | ☐ | ☐ | ☐ | ☐ |
-| 11 | `pinky_pip` | 小指 PIP | ☐ | ☐ | ☐ | ☐ |
-| 13 | `pinky_abd` | 小指侧摆 | ☐ | ☐ | ☐ | ☐ |
-| 17 | `thumb_cmc` | 拇指根部 CMC | ☐ | ☐ | ☐ | ☐ |
-| 14 | `thumb_abd` | 拇指侧摆 | ☐ | ☐ | ☐ | ☐ |
-| 15 | `thumb_mcp` | 拇指 MCP | ☐ | ☐ | ☐ | ☐ |
-| 16 | `thumb_dip` | 拇指 DIP | ☐ | ☐ | ☐ | ☐ |
+| 8 | `index_mcp` | 食指根部 MCP | ☐ | ☐ | ☐ | ☐ |
+| 9 | `index_pip` | 食指中间 PIP | ☐ | ☐ | ☐ | ☐ |
+| 7 | `index_abd` | 食指侧摆 | ☐ | ☐ | ☐ | ☐ |
+| 17 | `middle_mcp` | 中指 MCP | ☐ | ☐ | ☐ | ☐ |
+| 2 | `middle_pip` | 中指 PIP | ☐ | ☐ | ☐ | ☐ |
+| 6 | `middle_abd` | 中指侧摆 | ☐ | ☐ | ☐ | ☐ |
+| 4 | `ring_mcp` | 无名指 MCP | ☐ | ☐ | ☐ | ☐ |
+| 3 | `ring_pip` | 无名指 PIP | ☐ | ☐ | ☐ | ☐ |
+| 5 | `ring_abd` | 无名指侧摆 | ☐ | ☐ | ☐ | ☐ |
+| 15 | `pinky_mcp` | 小指 MCP | ☐ | ☐ | ☐ | ☐ |
+| 16 | `pinky_pip` | 小指 PIP | ☐ | ☐ | ☐ | ☐ |
+| 14 | `pinky_abd` | 小指侧摆 | ☐ | ☐ | ☐ | ☐ |
+| 10 | `thumb_cmc` | 拇指根部 CMC | ☐ | ☐ | ☐ | ☐ |
+| 13 | `thumb_abd` | 拇指侧摆 | ☐ | ☐ | ☐ | ☐ |
+| 12 | `thumb_mcp` | 拇指 MCP | ☐ | ☐ | ☐ | ☐ |
+| 11 | `thumb_dip` | 拇指 DIP | ☐ | ☐ | ☐ | ☐ |
 
-（ID 和名称来自官方右手 config 的 `joint_to_motor_map`。左手的 ID 对应不一样，用左手时告诉 Claude。）
+（ID 和名称来自官方**左手** config `orca_core/models/v2/orcahand-left/config.yaml` 的 `joint_to_motor_map`，2026-10-26 版。左右手的 ID 完全不一样，**别看网上右手的表**。）
 
 ### 不对怎么办
 
@@ -114,10 +114,10 @@ uv run python scripts\calibrate.py %CFG% --joints wrist --force-wrist
 
 ```
 cd orca_core
-set CFG=orca_core\models\v2\orcahand-right\config.yaml
+set CFG=orca_core\models\v2\orcahand-left\config.yaml
 ```
 
-左手就把 `right` 换成 `left`。
+**我们的是左手**（用户 2026-10-26 确认），所以路径是 `orcahand-left`。
 
 然后按顺序，每步通过再做下一步：
 
@@ -125,7 +125,7 @@ set CFG=orca_core\models\v2\orcahand-right\config.yaml
 |---|---|---|---|---|
 | 1 | `uv run python scripts\configure_motor_chain.py %CFG% --scan` | **只读**，扫描总线上所有舵机（会扫好几种波特率，要等一会儿） | ID 1–17 共 17 个，波特率 57600，手指 XC330-T288-T、手腕 XC430 | 见下面“扫描结果怎么看” |
 | 2 | `uv run python scripts\check_motor.py %CFG% --wrist` | 手腕小幅来回转。第一次会问硬件版本 → 输入 **2** | 手腕动一点点 | 不动 → 看电源、皮带 |
-| 3 | `uv run python scripts\check_motor.py %CFG% --motor-id 2` | 食指 PIP（ID 2）小幅来回转 | 食指动一点点 | 记下现象 |
+| 3 | `uv run python scripts\check_motor.py %CFG% --motor-id 9` | 食指 PIP（左手 ID 9）小幅来回转 | 食指动一点点 | 记下现象 |
 | 4 | `uv run python scripts\tension.py %CFG%` | 预紧：舵机把线拉直后顶住；用棘轮扳手**顺时针**拧每个舵机**上面**的卷线轮，听到咔哒，线**紧但不硬**就停；全部拧完按 Ctrl+C | 每根线都不松 | 别拧过头 |
 | 5 | `uv run python scripts\calibrate.py %CFG%` | 自动标定：每个关节推到两头的限位（16 步，含手腕），几分钟 | 每个关节弯到底、伸到底 | 某个关节没动 → 记下名字，Ctrl+C 停 |
 | 6 | 第 4、5 步**再做 1–2 次** | 新装的手第一次标定后线会松（官方说明就是这样） | 第二次以后不再出现松线 | — |
@@ -154,7 +154,7 @@ set CFG=orca_core\models\v2\orcahand-right\config.yaml
 
 ### 可选：让连接快一点
 
-程序每次连接都会先试 1M、3M，再试其他波特率，最后才找到 57600。不影响使用，只是每次多等几秒。想省掉：用记事本打开 `orca_core\models\v2\orcahand-right\config.yaml`，在最上面加一行 `baudrate: 57600`，保存。
+程序每次连接都会先试 1M、3M，再试其他波特率，最后才找到 57600。不影响使用，只是每次多等几秒。想省掉：用记事本打开 `orca_core\models\v2\orcahand-left\config.yaml`，在最上面加一行 `baudrate: 57600`，保存。
 
 ## 不要做的事
 
