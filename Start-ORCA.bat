@@ -58,12 +58,14 @@ goto menu
 echo.
 echo Serial ports on this PC:
 %RUN% "%~dp0tools\orca\make_config.py" --list
-set /p COMPORT=KM1M7C COM port (e.g. COM5):
-set /p SIDE=Hand side, right or left [right]:
-if "%SIDE%"=="" set SIDE=right
-set /p BAUD=Bridge servo-side baud [57600]:
+set /p COMPORT=U2D2 or KM1M7C COM port (e.g. COM5):
+set /p SIDE=Hand side, right or left [left]:
+if "%SIDE%"=="" set SIDE=left
+set /p BAUD=Servo baud [57600]:
 if "%BAUD%"=="" set BAUD=57600
-%RUN% "%~dp0tools\orca\make_config.py" "%ORCA%" --side %SIDE% --port %COMPORT% --baud %BAUD%
+set /p HW=Hand hardware version, 2 = v2.0 or 21 = v2.1 [2]:
+if "%HW%"=="" set HW=2
+%RUN% "%~dp0tools\orca\make_config.py" "%ORCA%" --side %SIDE% --port %COMPORT% --baud %BAUD% --hw %HW%
 if errorlevel 1 pause
 goto menu
 
@@ -92,7 +94,7 @@ echo  19 replay recorded poses                               moves
 echo  20 example program: finger + wrist (tools\orca\finger_wrist_example.py) moves
 echo  --- OTHER ---
 echo  W  web console orca_ui (setup + control + 3D in browser)
-echo  C  change COM port / side / baud
+echo  C  change COM port / side / baud / version
 echo  0  exit
 set "CHOICE="
 set /p CHOICE=Choose:
