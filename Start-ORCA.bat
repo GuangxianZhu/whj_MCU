@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
-echo === ORCA hand through KM1M7C bridge ===
+echo === ORCA hand: U2D2 or KM1M7C bridge ===
 
 rem ---------- 1. update this repo (whj_MCU main) ----------
 where git >nul 2>nul
@@ -78,9 +78,10 @@ echo  2  configure motor chain (set IDs 1-17, one by one)    WRITES EEPROM
 echo  3  check one finger motor (small sweep)                moves
 echo  4  check wrist motor (small sweep)                     moves
 echo  5  tension tendons (hold, then ratchet by hand)        moves
-echo  6  calibrate all joints (drive to hardstops)           moves
+echo  6  calibrate all joints (drive to hardstops)           moves  then saves tendon travel
 echo  7  calibrate wrist only (re-do wrist)                  moves
 echo  8  full setup wizard: 3x tension+calibrate + test      moves
+echo  T  compare tendon travel with last calibration round  read only
 echo  --- CONTROL ---
 echo  11 neutral pose                                        moves
 echo  12 zero pose                                           moves
@@ -93,6 +94,7 @@ echo  18 record poses (pose by hand, ENTER to save)          torque off
 echo  19 replay recorded poses                               moves
 echo  20 example program: finger + wrist (tools\orca\finger_wrist_example.py) moves
 echo  --- OTHER ---
+echo  B  bus timing test (U2D2 vs KM1M7C baseline)          read only
 echo  W  web console orca_ui (setup + control + 3D in browser)
 echo  C  change COM port / side / baud / version
 echo  0  exit
@@ -107,7 +109,11 @@ if "%CHOICE%"=="3" (
 )
 if "%CHOICE%"=="4"  %RUN% "%S%\check_motor.py" "%CFG%" --wrist & goto menu
 if "%CHOICE%"=="5"  %RUN% "%S%\tension.py" "%CFG%" & goto menu
-if "%CHOICE%"=="6"  %RUN% "%S%\calibrate.py" "%CFG%" & goto menu
+if "%CHOICE%"=="6" (
+  %RUN% "%S%\calibrate.py" "%CFG%"
+  %RUN% "%~dp0tools\orca\compare_travel.py" "%HAND%" --save
+  goto menu
+)
 if "%CHOICE%"=="7"  %RUN% "%S%\calibrate.py" "%CFG%" --joints wrist --force-wrist & goto menu
 if "%CHOICE%"=="8"  %RUN% "%S%\setup.py" "%CFG%" & goto menu
 if "%CHOICE%"=="11" %RUN% "%S%\neutral.py" "%CFG%" & goto menu
@@ -130,6 +136,8 @@ if "%CHOICE%"=="19" (
   goto menu
 )
 if "%CHOICE%"=="20" %RUN% "%~dp0tools\orca\finger_wrist_example.py" "%CFG%" & goto menu
+if /i "%CHOICE%"=="T" %RUN% "%~dp0tools\orca\compare_travel.py" "%HAND%" & goto menu
+if /i "%CHOICE%"=="B" %RUN% "%~dp0tools\orca\bus_timing.py" "%CFG%" & goto menu
 if /i "%CHOICE%"=="W" goto webui
 if /i "%CHOICE%"=="C" goto makecfg
 if "%CHOICE%"=="0" goto end
