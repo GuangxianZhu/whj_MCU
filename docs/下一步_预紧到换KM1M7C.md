@@ -19,6 +19,39 @@
 
 ---
 
+## 文中的“菜单 N”是什么意思
+
+指仓库根目录 **`Start-ORCA.bat`** 的菜单。双击它以后，它会先自动做这几件事：
+
+1. 更新本仓库；
+2. 下载或更新 orca_core；
+3. 准备 Python 环境；
+4. 第一次运行时，问你 COM 口、左右手、波特率、版本号。
+
+然后出现一个编号列表，**输入编号再按回车**就运行对应的程序。
+
+不用 bat 的话，在 orca_core 文件夹里运行右边那一列的官方命令，效果一样。官方命令里的 `%CFG%` 是你的 config 路径，例如 `set CFG=orca_core\models\v2\orcahand-left\config.yaml`。
+
+| 菜单 | 做什么 | 等价的官方命令 |
+|---|---|---|
+| 1 | 扫描总线，列出应答的舵机（只读） | `uv run python scripts\configure_motor_chain.py %CFG% --scan` |
+| 3 | 单个电机小幅来回转（会问 ID） | `uv run python scripts\check_motor.py %CFG% --motor-id 8` |
+| 5 | 预紧 | `uv run python scripts\tension.py %CFG%` |
+| 6 | 标定，然后自动对比行程 | `uv run python scripts\calibrate.py %CFG%`，再运行菜单 T 那一行 |
+| 11 | 回中立 | `uv run python scripts\neutral.py %CFG%` |
+| 13 | 每个关节一个滑块 | `uv run python scripts\manual_control.py %CFG%` |
+| 14 | 每个电机一个滑块（查单根绳） | `uv run python scripts\manual_control.py %CFG% --motor-space` |
+| 15 | 演示：张开 → 握拳 → 捏 | `uv run python examples\main_demo.py %CFG% --demo main` |
+| 16 | 演示：手指张开 / 收拢 | `uv run python examples\main_demo.py %CFG% --demo abduction` |
+| 17 | 压力测试（看温度） | `uv run python scripts\stress_test.py %CFG%` |
+| T | 对比各轮标定的行程（只读） | `uv run python <whj_MCU>\tools\orca\compare_travel.py <config.yaml 所在文件夹> --save` |
+| B | 总线测速 + Return Delay（只读） | `uv run python <whj_MCU>\tools\orca\bus_timing.py %CFG%` |
+| C | 重新生成 config（换 COM 口时用） | 没有官方对应；bat 用 `tools\orca\make_config.py` 生成 `tools\orca\my_hand\config.yaml` |
+
+`<whj_MCU>` 是你电脑上本仓库的文件夹。T 和 B 是本仓库加的工具，不是官方的。
+
+---
+
 ## 先猜一题
 
 预紧以后，为什么**必须再标定一次**？
