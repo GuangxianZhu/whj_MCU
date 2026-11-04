@@ -53,6 +53,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-11-03 用户告知：ORCA 左手 v2.0 已于 10-30（周五）装好，腱绳已装，第 1 次标定已做；下一步预紧。手势没问题以后把 U2D2 换成 KM1M7C。**（2026-11-04 用户确认：中指 ABD 脱出的腱绳**已修好、重新装了**。）步骤文档 `docs/下一步_预紧到换KM1M7C.md`：①预紧+再标定，重复到收敛；②手势验收 G1–G5；③U2D2 基准（菜单 B）；④换 KM1M7C（K0–K8，坑：config 必须写死 57600，否则自动探测会误判 1M，SDK 超时约 38 ms < 实际 62 ms；Return Delay 和 TXEN 要用 TC 标志）；⑤可选 1 Mbps。新工具：`tools/orca/compare_travel.py`（读 calibration.yaml 的 `motor_travel_measured`，和上一轮、同类手指比，存 `travel_history/`；菜单 6 标定后自动运行，菜单 T 单独看）、`tools/orca/bus_timing.py`（只读：打印 Return Delay、200 次全读耗时和失败数；菜单 B）。推荐用户现在就改用 `my_hand` config（U2D2 的 COM），换 KM1M7C 时只改 COM。两个脚本都没在实物上跑过（compare_travel 用假数据测过）。
 - **2026-11-04 用户告知：预紧已完成，中立（neutral）和零位（zero）都测过、没有问题。** 下一步：手势验收 G2（关节滑块）、G3/G4（两个演示），然后 U2D2 基准（菜单 B）、换 KM1M7C。预紧后做了几轮再标定，用户没说。
 - **2026-11-04 下午用户告知：预紧后的再标定完成（用户回答“完成了”），手的动作（手势）也测试完了，没有问题；接下来换 M7C（KM1M7C）。** 一页纸 `docs/换M7C_一页纸.md`（官方命令版）：①U2D2 还插着时跑 `bus_timing.py` 记基准和 Return Delay；②`make_config.py . --side left --port COMx --baud 57600 --hw 2` 生成 `tools/orca/my_hand/config.yaml`，复制官方路径下的 `calibration.yaml` 过去；③关 12V 换线（3P 只接 GND/DATA）；④K1–K8。用户的透传固件 TXEN 怎么切（TC/TXE/延时）还没问到。
+- **2026-11-04 16:00 用户告知：KM1M7C 连接成功，用它控制手也成功。** 改动是用户在自己电脑上用另一个账号的 Claude 做的，本仓库里没有那些改动；用户说明天告诉改了什么。补到 `docs/换M7C_一页纸.md` 末尾的“实际改动”一节，相关文件也要同步（`make_config.py`、`Start-ORCA.bat`、固件说明等）。U2D2 基准（bus_timing）有没有做、Return Delay 的值、固件 TXEN 怎么切，都还不知道。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
