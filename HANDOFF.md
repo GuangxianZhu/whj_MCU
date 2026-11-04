@@ -52,6 +52,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-10-30 orca_core 代码导读**：`docs/orca_core代码导读_左手v2.0.md`（对照 orca_core `e7a8540`）——每个文件干什么、怎么用、左手 v2.0 的 6 个注意点。源码确认的坑：①不写 config 路径时 U2D2 上会按**右手**加载；②`hardware_version` 无官方板时会在终端问，输 21 会让左手拇指 MCP(12)/DIP(11) 反转；③v2.0 没有行程基准、标定只一遍、全部 300 mA，`guided_tension.py` 拒绝运行；④`neutral/zero/main_demo/stress_test/record_angles` 找不到 calibration.yaml 会**自动完整标定**（中指 ABD 没修好前别跑）。`make_config.py` 新增 `--hw`（默认 2），`Start-ORCA.bat` 首次运行默认 left、问版本号（默认 2）。
 - **2026-11-03 用户告知：ORCA 左手 v2.0 已于 10-30（周五）装好，腱绳已装，第 1 次标定已做；下一步预紧。手势没问题以后把 U2D2 换成 KM1M7C。**（2026-11-04 用户确认：中指 ABD 脱出的腱绳**已修好、重新装了**。）步骤文档 `docs/下一步_预紧到换KM1M7C.md`：①预紧+再标定，重复到收敛；②手势验收 G1–G5；③U2D2 基准（菜单 B）；④换 KM1M7C（K0–K8，坑：config 必须写死 57600，否则自动探测会误判 1M，SDK 超时约 38 ms < 实际 62 ms；Return Delay 和 TXEN 要用 TC 标志）；⑤可选 1 Mbps。新工具：`tools/orca/compare_travel.py`（读 calibration.yaml 的 `motor_travel_measured`，和上一轮、同类手指比，存 `travel_history/`；菜单 6 标定后自动运行，菜单 T 单独看）、`tools/orca/bus_timing.py`（只读：打印 Return Delay、200 次全读耗时和失败数；菜单 B）。推荐用户现在就改用 `my_hand` config（U2D2 的 COM），换 KM1M7C 时只改 COM。两个脚本都没在实物上跑过（compare_travel 用假数据测过）。
 - **2026-11-04 用户告知：预紧已完成，中立（neutral）和零位（zero）都测过、没有问题。** 下一步：手势验收 G2（关节滑块）、G3/G4（两个演示），然后 U2D2 基准（菜单 B）、换 KM1M7C。预紧后做了几轮再标定，用户没说。
+- **2026-11-04 下午用户告知：预紧后的再标定完成（用户回答“完成了”），手的动作（手势）也测试完了，没有问题；接下来换 M7C（KM1M7C）。** 一页纸 `docs/换M7C_一页纸.md`（官方命令版）：①U2D2 还插着时跑 `bus_timing.py` 记基准和 Return Delay；②`make_config.py . --side left --port COMx --baud 57600 --hw 2` 生成 `tools/orca/my_hand/config.yaml`，复制官方路径下的 `calibration.yaml` 过去；③关 12V 换线（3P 只接 GND/DATA）；④K1–K8。用户的透传固件 TXEN 怎么切（TC/TXE/延时）还没问到。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
@@ -74,6 +75,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `docs/两个XC330.md` | **现在用这份**：两个 XC330（12V + PHB）的改 ID 两种方法、接法、T1–T11 测试包、风险 |
 | `docs/一根手指.md` | **当前任务**：3 个 XC330（ID 0/1/2）一根手指，时间型曲线、认方向、手势 HEX 包（张开/半握/握紧/钩/卷）、以后装实物的位置限制和电流控制 |
 | `Start-ORCA.bat`、`tools/orca/make_config.py` | 用 KM1M7C 跑 orca_core 的一键启动和配置生成 |
+| `docs/换M7C_一页纸.md` | **现在用这份**：U2D2 → M7C 的四步（基准、config、换线、K1–K8），官方命令版 |
 | `docs/下一步_预紧到换KM1M7C.md` | **当前**：预紧原理和操作、收敛判断、手势验收、U2D2 基准、换 KM1M7C 的坑和小步验收 |
 | `tools/orca/compare_travel.py`、`tools/orca/bus_timing.py` | 标定轮次行程对比（菜单 6/T）；总线测速和 Return Delay（菜单 B） |
 | `docs/orca_core代码导读_左手v2.0.md` | orca_core 每个文件的作用、左手 v2.0 用法和注意点（版本号、自动标定、波特率、Windows） |
