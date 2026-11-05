@@ -54,6 +54,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-11-04 用户告知：预紧已完成，中立（neutral）和零位（zero）都测过、没有问题。** 下一步：手势验收 G2（关节滑块）、G3/G4（两个演示），然后 U2D2 基准（菜单 B）、换 KM1M7C。预紧后做了几轮再标定，用户没说。
 - **2026-11-04 下午用户告知：预紧后的再标定完成（用户回答“完成了”），手的动作（手势）也测试完了，没有问题；接下来换 M7C（KM1M7C）。** 一页纸 `docs/换M7C_一页纸.md`（官方命令版）：①U2D2 还插着时跑 `bus_timing.py` 记基准和 Return Delay；②`make_config.py . --side left --port COMx --baud 57600 --hw 2` 生成 `tools/orca/my_hand/config.yaml`，复制官方路径下的 `calibration.yaml` 过去；③关 12V 换线（3P 只接 GND/DATA）；④K1–K8。用户的透传固件 TXEN 怎么切（TC/TXE/延时）还没问到。
 - **2026-11-04 16:00 用户告知：KM1M7C 连接成功，用它控制手也成功。** 改动是用户在自己电脑上用另一个账号的 Claude 做的，本仓库里没有那些改动；用户说明天告诉改了什么。补到 `docs/换M7C_一页纸.md` 末尾的“实际改动”一节，相关文件也要同步（`make_config.py`、`Start-ORCA.bat`、固件说明等）。U2D2 基准（bus_timing）有没有做、Return Delay 的值、固件 TXEN 怎么切，都还不知道。
+- **2026-11-05 新任务：6 块 M7C 控制手。** 用户更正后的分法：**一根手指 3 个电机用一块 M7C**；拇指 4 个分 3 + 1，多出的 1 个和手腕合用一块，共 6 块。调研在 `docs/六块M7C方案调研.md`：推荐先做方案 A（6 个 COM，透传固件不改，ID 和标定不改，电脑端写 `MultiBusClient` 并行收发）。还没动手；等用户回答目的、M7C 怎么连电脑、拇指分哪个电机、11-04 实际改动。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
@@ -76,7 +77,8 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `docs/两个XC330.md` | **现在用这份**：两个 XC330（12V + PHB）的改 ID 两种方法、接法、T1–T11 测试包、风险 |
 | `docs/一根手指.md` | **当前任务**：3 个 XC330（ID 0/1/2）一根手指，时间型曲线、认方向、手势 HEX 包（张开/半握/握紧/钩/卷）、以后装实物的位置限制和电流控制 |
 | `Start-ORCA.bat`、`tools/orca/make_config.py` | 用 KM1M7C 跑 orca_core 的一键启动和配置生成 |
-| `docs/换M7C_一页纸.md` | **现在用这份**：U2D2 → M7C 的四步（基准、config、换线、K1–K8），官方命令版 |
+| `docs/六块M7C方案调研.md` | **当前任务**：6 块 M7C / 6 条总线的分组、时间账、三个方向、硬件和软件改动、实施顺序 |
+| `docs/换M7C_一页纸.md` | U2D2 换 M7C（已完成）：U2D2 → M7C 的四步（基准、config、换线、K1–K8），官方命令版 |
 | `docs/下一步_预紧到换KM1M7C.md` | **当前**：预紧原理和操作、收敛判断、手势验收、U2D2 基准、换 KM1M7C 的坑和小步验收 |
 | `tools/orca/compare_travel.py`、`tools/orca/bus_timing.py` | 标定轮次行程对比（菜单 6/T）；总线测速和 Return Delay（菜单 B） |
 | `docs/orca_core代码导读_左手v2.0.md` | orca_core 每个文件的作用、左手 v2.0 用法和注意点（版本号、自动标定、波特率、Windows） |
