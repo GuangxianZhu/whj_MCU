@@ -55,6 +55,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-11-04 下午用户告知：预紧后的再标定完成（用户回答“完成了”），手的动作（手势）也测试完了，没有问题；接下来换 M7C（KM1M7C）。** 一页纸 `docs/换M7C_一页纸.md`（官方命令版）：①U2D2 还插着时跑 `bus_timing.py` 记基准和 Return Delay；②`make_config.py . --side left --port COMx --baud 57600 --hw 2` 生成 `tools/orca/my_hand/config.yaml`，复制官方路径下的 `calibration.yaml` 过去；③关 12V 换线（3P 只接 GND/DATA）；④K1–K8。用户的透传固件 TXEN 怎么切（TC/TXE/延时）还没问到。
 - **2026-11-04 16:00 用户告知：KM1M7C 连接成功，用它控制手也成功。** 改动是用户在自己电脑上用另一个账号的 Claude 做的，本仓库里没有那些改动；用户说明天告诉改了什么。补到 `docs/换M7C_一页纸.md` 末尾的“实际改动”一节，相关文件也要同步（`make_config.py`、`Start-ORCA.bat`、固件说明等）。U2D2 基准（bus_timing）有没有做、Return Delay 的值、固件 TXEN 怎么切，都还不知道。
 - **2026-11-05 新任务：6 块 M7C 控制手。** 用户更正后的分法：**一根手指 3 个电机用一块 M7C**；拇指 4 个分 3 + 1，多出的 1 个和手腕合用一块，共 6 块。调研在 `docs/六块M7C方案调研.md`：推荐先做方案 A（6 个 COM，透传固件不改，ID 和标定不改，电脑端写 `MultiBusClient` 并行收发）。还没动手；等用户回答目的、M7C 怎么连电脑、拇指分哪个电机、11-04 实际改动。
+- **2026-11-10 用户想成长为资深嵌入式工程师**，要了一份以本仓库的坑为教材的课程：`docs/course/orca_pitfall_course.html`（`Start-Course.bat`）。用户做课程任务时可能会来问；任务清单在每关末尾。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
@@ -66,6 +67,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `docs/breadboard/快速检查.md/.html` | **推荐先用**：4 步 18 项，手动切 DIR，不用改程序 |
 | `docs/breadboard/分级检查.md/.html` | 80 项：MCU → +TXB → +241 → +舵机，每项有目的，静态电平用跳线 |
 | `docs/breadboard/通信全面检查.md/.html` | 86 项全面版 |
+| `docs/course/orca_pitfall_course.html` | **嵌入式避坑课**（单文件 HTML，10 关约 40 小时，对照提交 `62519f2`）：每关一个本仓库的真实问题 + 新人/资深对照 + 小实验 + 任务；根目录 `Start-Course.bat` 先 git pull main 再打开。课程里指出的 4 个隐患是读代码推出来的，**还没改代码、没在实物上复现**：①`dxl.c` 的 `& 0x7F` 屏蔽了 Alert 位；②`bridge.c` 环形缓冲溢出没有计数器；③`bridge_submit()` 不能在中断里调用（和 `bridge_poll()` 抢 `s_q_count`）；④实物上跑的透传固件不在仓库里。在线版 https://claude.ai/artifact/3jmsdiLZqCqMuCicgxhEMP |
 | `docs/exploded/xl330_exploded.html` | three.js 3D 爆炸图（单文件，CDN 加载 three@0.169.0）：整套接线 + 舵机内部（示意）+ TX/RX 信号流动画；根目录 `Start-Exploded-View.bat` 先 git pull main 再打开。接线数据 `WIRES` 抄自 `xl330_breadboard.html`，改接线时两边一起改 |
 | `tools/check_wiring.py` | 接线网络核对（`--selftest` 自测） |
 | `tools/*_check_data.py` | 三份检查表的数据源（生成 md 和页面 JSON） |
