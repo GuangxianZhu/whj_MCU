@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORCA 手嵌入式避坑课</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
+<style>
+/* 版面：左侧是关卡地图（像板子边上的丝印），右侧是一列 68 字宽的课文；配色取自阻焊绿和铜箔。 */
+:root{
+  --bg:#f1f5f3; --panel:#ffffff; --ink:#14201d; --muted:#586763; --line:#d3dcd8;
+  --accent:#0a6b5e; --copper:#9a5c14; --good:#1c7a3c; --warn:#b45309; --bad:#b3261e;
+  --code:#e8eeeb; --accent-soft:#dcefeb; --bad-soft:#fbe6e3; --good-soft:#e0f2e6; --copper-soft:#f6ead7;
+  --display:"Noto Serif SC","Songti SC","SimSun",serif;
+  --body:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono","Cascadia Mono",Consolas,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0d1513; --panel:#141f1c; --ink:#e2ebe7; --muted:#93a39e; --line:#27362f;
+    --accent:#45c4ab; --copper:#e2a94f; --good:#5fd08a; --warn:#f0b35a; --bad:#ff8278;
+    --code:#1a2723; --accent-soft:#16332d; --bad-soft:#3a1c19; --good-soft:#163222; --copper-soft:#33270f;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0d1513; --panel:#141f1c; --ink:#e2ebe7; --muted:#93a39e; --line:#27362f;
+  --accent:#45c4ab; --copper:#e2a94f; --good:#5fd08a; --warn:#f0b35a; --bad:#ff8278;
+  --code:#1a2723; --accent-soft:#16332d; --bad-soft:#3a1c19; --good-soft:#163222; --copper-soft:#33270f;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.75}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{display:grid;grid-template-columns:270px minmax(0,1fr);gap:0;max-width:1180px;margin:0 auto}
+nav.map{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:24px 16px 24px 20px;border-right:1px solid var(--line)}
+nav.map h2{font-family:var(--display);font-size:17px;margin:0 0 4px}
+nav.map .sub{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+.bar{height:8px;background:var(--code);border-radius:4px;overflow:hidden;margin:6px 0 4px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.barlabel{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;margin-bottom:14px}
+nav.map ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+nav.map li a{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:baseline;padding:6px 8px;border-radius:6px;text-decoration:none;color:var(--ink);font-size:14px;line-height:1.4}
+nav.map li a:hover{background:var(--code)}
+nav.map li a .n{font-family:var(--mono);font-size:12px;color:var(--copper)}
+nav.map li a .h{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+nav.map li.done a .n::after{content:"✓";color:var(--good);margin-left:1px}
+nav.map .stage{font-size:11.5px;letter-spacing:.08em;color:var(--muted);margin:12px 8px 2px}
+main{padding:28px 32px 80px;min-width:0}
+main>*{max-width:44em}
+header.top h1{font-family:var(--display);font-weight:900;font-size:34px;line-height:1.25;margin:0 0 10px;text-wrap:balance}
+header.top p{margin:0 0 10px;color:var(--muted)}
+h2.lv{font-family:var(--display);font-weight:900;font-size:25px;line-height:1.3;margin:0 0 6px;text-wrap:balance}
+h3{font-size:16.5px;margin:26px 0 8px}
+section.lesson{border-top:2px solid var(--ink);padding-top:22px;margin-top:56px;scroll-margin-top:12px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:12px}
+.meta .no{font-family:var(--mono);color:var(--copper);font-weight:600}
+.pips{letter-spacing:2px;color:var(--accent)}
+.tag{display:inline-block;font-size:11.5px;line-height:1;padding:4px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:1px}
+.tag.fact{border-color:var(--copper);color:var(--copper)}
+.tag.std{border-color:var(--accent);color:var(--accent)}
+.tag.calc{border-color:var(--muted)}
+.tag.guess{border-style:dashed}
+p{margin:0 0 12px}
+ul,ol{padding-left:1.3em;margin:0 0 12px}
+li{margin-bottom:4px}
+code,kbd{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 5px;border-radius:3px}
+pre{font-family:var(--mono);font-size:13px;line-height:1.55;background:var(--code);padding:12px 14px;border-radius:6px;overflow-x:auto;margin:0 0 12px}
+pre code{background:none;padding:0;font-size:inherit}
+pre .hl{background:var(--bad-soft);display:inline-block;width:100%}
+.pit{background:var(--copper-soft);border-left:4px solid var(--copper);padding:12px 16px;border-radius:0 6px 6px 0;margin:0 0 14px}
+.pit .ttl{font-weight:700;margin-bottom:4px}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 14px}
+.vs>div{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+.vs .who{font-size:12.5px;font-weight:700;letter-spacing:.06em;margin-bottom:6px}
+.vs .jr .who{color:var(--bad)} .vs .sr .who{color:var(--good)}
+.vs ul{margin:0;padding-left:1.1em;font-size:14.5px}
+.lab{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin:0 0 16px}
+.lab .cap{font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:10px}
+.row{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:10px}
+.row label{font-size:14px;display:flex;flex-direction:column;gap:2px;flex:1 1 180px;min-width:0}
+.row label span b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=text]{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);max-width:100%}
+input[type=text]{width:100%;font-family:var(--mono);font-size:13px}
+button{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.pri{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+.out{font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;background:var(--code);border-radius:6px;padding:10px 12px;line-height:1.7;overflow-x:auto}
+.verdict{margin-top:8px;padding:8px 12px;border-radius:6px;font-size:14.5px}
+.verdict.ok{background:var(--good-soft);color:var(--good)}
+.verdict.mid{background:var(--copper-soft);color:var(--warn)}
+.verdict.no{background:var(--bad-soft);color:var(--bad)}
+.svgbox{overflow-x:auto;margin-bottom:8px}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--ink)}
+svg .mut{fill:var(--muted)} svg .ax{stroke:var(--line);stroke-width:1} svg .dash{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+svg .tx{fill:var(--accent-soft);stroke:var(--accent)} svg .sv{fill:var(--copper-soft);stroke:var(--copper)}
+svg .dir{fill:none;stroke:var(--ink);stroke-width:2} svg .hit{fill:var(--bad);opacity:.35}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-size:13.5px}
+.bars .b{height:14px;background:var(--accent);border-radius:2px;min-width:2px}
+.bars .b.alt{background:var(--copper)}
+.bars .v{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.quiz{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:0 0 16px;background:var(--panel)}
+.quiz .q{font-weight:700;margin-bottom:10px}
+.quiz .opts{display:flex;flex-direction:column;gap:6px}
+.quiz .opt{text-align:left;line-height:1.5;padding:8px 12px}
+.quiz .opt.right{border-color:var(--good);background:var(--good-soft);color:var(--good)}
+.quiz .opt.wrong{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
+.quiz .why{display:none;margin-top:10px;font-size:14.5px;border-top:1px dashed var(--line);padding-top:10px}
+.quiz.answered .why{display:block}
+.todo{border:1px solid var(--accent);border-radius:8px;padding:14px 16px;margin:0 0 8px}
+.todo .cap{font-size:12.5px;font-weight:700;letter-spacing:.06em;color:var(--accent);margin-bottom:8px}
+.todo label{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;margin-bottom:8px;font-size:15px;line-height:1.6;cursor:pointer}
+.todo input{margin-top:5px;accent-color:var(--accent);width:16px;height:16px}
+.todo label.fin{font-weight:700;border-top:1px dashed var(--line);padding-top:10px;margin:10px 0 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+.tbl{overflow-x:auto;margin:0 0 14px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.step{font-family:var(--mono);font-size:13.5px}
+.step div{padding:5px 10px;border-left:3px solid var(--line);margin-bottom:3px;color:var(--muted)}
+.step div.on{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.step div.isr.on{border-color:var(--bad);background:var(--bad-soft)}
+.mem{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}
+.mem span{font-family:var(--mono);font-size:13.5px;background:var(--code);padding:6px 10px;border-radius:5px}
+.note{font-size:13.5px;color:var(--muted)}
+footer{margin-top:60px;border-top:1px solid var(--line);padding-top:16px;font-size:13px;color:var(--muted)}
+@media (max-width:880px){
+  .shell{grid-template-columns:1fr}
+  nav.map{position:sticky;top:0;height:auto;z-index:5;background:var(--bg);border-right:0;border-bottom:1px solid var(--line);padding:10px 16px}
+  nav.map h2,nav.map .sub,nav.map .stage{display:none}
+  nav.map .barlabel{margin-bottom:6px}
+  nav.map ol{flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}
+  nav.map li a{grid-template-columns:auto;white-space:nowrap;border:1px solid var(--line);padding:4px 10px}
+  nav.map li a .t,nav.map li a .h{display:none}
+  main{padding:20px 16px 60px}
+  header.top h1{font-size:27px}
+  h2.lv{font-size:22px}
+  .vs{grid-template-columns:1fr}
+  section.lesson{scroll-margin-top:84px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="map" aria-label="关卡地图">
+  <h2>关卡地图</h2>
+  <p class="sub">10 关，约 40 小时。从量电压到设计系统。</p>
+  <div class="bar"><i id="pbar"></i></div>
+  <div class="barlabel" id="plabel">已完成 0 / 40 小时</div>
+  <ol id="navlist">
+    <li data-l="0"><a href="#l0"><span class="n">0</span><span class="t">差距在哪</span><span class="h">0.5h</span></a></li>
+    <li class="stage" aria-hidden="true">入门 · 手上的东西</li>
+    <li data-l="1"><a href="#l1"><span class="n">1</span><span class="t">先量再信</span><span class="h">3h</span></a></li>
+    <li data-l="2"><a href="#l2"><span class="n">2</span><span class="t">电源与地</span><span class="h">4h</span></a></li>
+    <li class="stage" aria-hidden="true">进阶 · 看不见的时间</li>
+    <li data-l="3"><a href="#l3"><span class="n">3</span><span class="t">TXEN 的 20 微秒</span><span class="h">5h</span></a></li>
+    <li data-l="4"><a href="#l4"><span class="n">4</span><span class="t">时间账与超时</span><span class="h">4h</span></a></li>
+    <li data-l="5"><a href="#l5"><span class="n">5</span><span class="t">中断与共享数据</span><span class="h">6h</span></a></li>
+    <li class="stage" aria-hidden="true">高阶 · 它坏的时候</li>
+    <li data-l="6"><a href="#l6"><span class="n">6</span><span class="t">让错误看得见</span><span class="h">5h</span></a></li>
+    <li data-l="7"><a href="#l7"><span class="n">7</span><span class="t">会动的东西</span><span class="h">4h</span></a></li>
+    <li data-l="8"><a href="#l8"><span class="n">8</span><span class="t">六块 M7C</span><span class="h">6h</span></a></li>
+    <li class="stage" aria-hidden="true">收尾</li>
+    <li data-l="9"><a href="#l9"><span class="n">9</span><span class="t">工程纪律</span><span class="h">2.5h</span></a></li>
+    <li><a href="#road"><span class="n">→</span><span class="t">之后的路</span><span class="h"></span></a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="top">
+  <h1>ORCA 手嵌入式避坑课</h1>
+  <p>教材是你自己的仓库 <code>whj_MCU</code>。每一关从一个真实的坑讲起：有的你已经踩过，有的还埋在代码里没爆。每关都对照新人和资深工程师的做法，讲清原理，再给一个要在实物上完成的任务。</p>
+  <p>内容后面的小标签说明证据强弱：
+    <span class="tag fact">项目实录</span> 来自你仓库的文档和代码；
+    <span class="tag std">公认</span> 数据手册或协议规定；
+    <span class="tag calc">推算</span> 按公式算的，没实测；
+    <span class="tag guess">我的判断</span> 经验之谈，可以质疑。</p>
+</header>
+
+<div class="tbl" style="margin-top:20px">
+<table>
+<thead><tr><th>关</th><th>主题</th><th>用到的真实的坑</th><th>学时</th></tr></thead>
+<tbody>
+<tr><td class="num">0</td><td>差距在哪</td><td>五个习惯</td><td class="num">0.5</td></tr>
+<tr><td class="num">1</td><td>先量再信</td><td>R3 插成 10k，DIR 高电平只有 3.5 V</td><td class="num">3</td></tr>
+<tr><td class="num">2</td><td>电源与地</td><td>两条地轨，接上逻辑分析仪故障就消失</td><td class="num">4</td></tr>
+<tr><td class="num">3</td><td>TXEN 的 20 微秒</td><td>Return Delay 被改成 20 µs，TC 和 TXE 的区别</td><td class="num">5</td></tr>
+<tr><td class="num">4</td><td>时间账与超时</td><td>波特率被误判成 1 Mbps，每次读都超时</td><td class="num">4</td></tr>
+<tr><td class="num">5</td><td>中断与共享数据</td><td><code>bridge.c</code> 里三处还没爆的隐患</td><td class="num">6</td></tr>
+<tr><td class="num">6</td><td>让错误看得见</td><td><code>dxl.c</code> 屏蔽了硬件报警位</td><td class="num">5</td></tr>
+<tr><td class="num">7</td><td>会动的东西</td><td>中指 ABD 腱绳的结被拉穿</td><td class="num">4</td></tr>
+<tr><td class="num">8</td><td>六块 M7C</td><td>轮流跑反而更慢、地环路、COM 号</td><td class="num">6</td></tr>
+<tr><td class="num">9</td><td>工程纪律</td><td>实物上跑的固件不在仓库里</td><td class="num">2.5</td></tr>
+<tr><td></td><td><b>合计</b></td><td>每周 5 小时，约 8 周。一半时间要花在实物上</td><td class="num"><b>40</b></td></tr>
+</tbody>
+</table>
+</div>
+<p class="note">40 小时能做到的事：认出这十类坑，知道怎么查、怎么绕。要成为资深工程师，还需要几年时间和几个从头做到尾的项目，最后一节有路线。<span class="tag guess">我的判断</span></p>
+
+<!-- ============================== L0 -->
+<section class="lesson" id="l0">
+  <div class="meta"><span class="no">第 0 关</span><span>0.5 小时</span><span class="pips">●○○○○</span></div>
+  <h2 class="lv">资深工程师比新人强在哪</h2>
+  <p>两个人知道的知识点可能差不多。差别在遇到问题时的第一反应。我把它归成五个习惯，后面九关每一关都在练其中一两个。<span class="tag guess">我的判断</span></p>
+  <div class="tbl"><table>
+  <thead><tr><th>习惯</th><th>新人的第一反应</th><th>资深的第一反应</th><th>在哪一关练</th></tr></thead>
+  <tbody>
+  <tr><td><b>先量再信</b></td><td>我觉得应该是 5 V</td><td>量一下，记下来</td><td class="num">1、2、3</td></tr>
+  <tr><td><b>先算账</b></td><td>先接上试试</td><td>先算时间、电流、余量，再和实测对比</td><td class="num">1、4、8</td></tr>
+  <tr><td><b>一次改一个变量</b></td><td>换线、换板、换程序一起来</td><td>只动一处，留好退路</td><td class="num">4、6、8</td></tr>
+  <tr><td><b>假设它会坏</b></td><td>正常流程能跑就行</td><td>每条出错路径都有超时、计数器和安全状态</td><td class="num">5、6、7</td></tr>
+  <tr><td><b>写下来</b></td><td>我记得改了什么</td><td>三个月后别人照着文档能重现</td><td class="num">9</td></tr>
+  </tbody></table></div>
+  <p>你的仓库里已经有其中几项的雏形：换 U2D2 之前先用 <code>bus_timing.py</code> 记基准，文档里分了“源码确认 / 计算 / 推测”，驱动有电脑上跑的测试。这门课要做的是把这些从偶尔做到变成每次都做。</p>
+  <div class="quiz" data-q="q0">
+    <div class="q">手突然有一根手指不动了。下面哪个是资深工程师最可能先做的事？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">重新烧一遍固件</button>
+      <button class="opt" data-ok="0">把那根手指的线重新插一遍</button>
+      <button class="opt" data-ok="1">先不动任何东西，读出那个舵机的错误状态和电压，记下现场</button>
+      <button class="opt" data-ok="0">换一个新舵机</button>
+    </div>
+    <div class="why">前两个和最后一个都会破坏现场。重插以后如果好了，你永远不知道原因，它下次还会来。先读状态不花钱，也不改变任何东西。原则是：<b>能观察的时候不要动手改</b>。</div>
+  </div>
+  <div class="todo"><div class="cap">任务</div>
+    <label class="fin"><input type="checkbox" data-done="0"> 读完这一关，标记完成</label>
+  </div>
+</section>
+
+<!-- ============================== L1 -->
+<section class="lesson" id="l1">
+  <div class="meta"><span class="no">第 1 关</span><span>3 小时</span><span class="pips">●○○○○</span><span>入门</span></div>
+  <h2 class="lv">先量再信：一个电阻插错的代价</h2>
+  <div class="pit"><div class="ttl">你踩过的坑 <span class="tag fact">项目实录</span></div>
+    DIR 下拉电阻 R3 曾经插成 10 kΩ。DIR 输出高电平时，TXB0104 的 B1 脚只有约 3.5 V。换成 100 kΩ 后实测 4.77 V。（<code>HANDOFF.md</code>）</div>
+
+  <h3>原理</h3>
+  <p>TXB0104 是自动识别方向的电平转换芯片。为了能被对面的信号“推翻”，它的输出故意做得很弱，内部串了大约 4 kΩ 的电阻。<span class="tag std">公认</span> 你在输出脚上接一个下拉电阻 R，就和这 4 kΩ 组成了分压：</p>
+  <pre><code>V(B1) = 5 V × R / (R + 4 kΩ)</code></pre>
+  <p>后面接的 74LVC2G241 在 5 V 供电时，要求输入高电平不低于 0.7 × 5 = 3.5 V。<span class="tag std">公认</span> 拖动下面的滑块，看 10 kΩ 落在哪里。</p>
+
+  <div class="lab"><div class="cap">实验 · 分压和门槛</div>
+    <div class="row"><label for="r-pull"><span>下拉电阻 R = <b id="r-val">10</b> kΩ</span><input type="range" id="r-pull" min="0" max="200" value="87"></label></div>
+    <div class="out" id="r-out"></div>
+    <div class="verdict" id="r-ver"></div>
+  </div>
+
+  <p>10 kΩ 算出来是 3.57 V，离门槛只有 0.07 V。电路能工作，但几乎没有余量。电源低一点、温度变一点、地上有一点噪声，就会时好时坏。这种“刚好能用”比“完全不通”难查得多。</p>
+  <p class="note">依赖的假设：4 kΩ 是典型值，每颗芯片会有偏差；计算只考虑了这一个负载。结论什么时候失效：换成强驱动的电平转换芯片后，这条限制就不存在了。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>手边有 10k 就插 10k，“下拉电阻嘛，差不多”</li>
+      <li>能通信了就认为电路是对的</li>
+      <li>数据手册只看引脚图</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>先翻数据手册的“推荐工作条件”和“应用注意”</li>
+      <li>每个节点算一遍电平，和门槛比，留至少 20% 余量</li>
+      <li>上电后量实际电压，写进文档</li>
+      <li>反过来问：这颗芯片适合这个用途吗？</li></ul></div>
+  </div>
+  <p>最后一条值得展开。你的三根信号（DIR、TX、RX）方向都是固定的，并不需要“自动识别方向”。用方向固定的缓冲器做电平转换，驱动强，也没有上下拉电阻和负载电容的限制。做转接 PCB 时可以考虑换掉 TXB0104。<span class="tag guess">我的判断</span></p>
+
+  <div class="quiz" data-q="q1">
+    <div class="q">TXB0104 的数据手册还写了一条：每个输出最多带 70 pF。你在 B1 上接了一个 104（0.1 µF）电容来滤毛刺，会怎样？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">没问题，电容越大滤得越干净</button>
+      <button class="opt" data-ok="1">超出限制一千多倍，边沿会变得很慢，芯片的方向识别也可能出错</button>
+      <button class="opt" data-ok="0">芯片会立刻烧掉</button>
+    </div>
+    <div class="why">0.1 µF 是 100000 pF。4 kΩ × 0.1 µF 的时间常数是 0.4 ms，57600 波特率下一位才 17 µs，DIR 根本来不及翻转。<code>HANDOFF.md</code> 里已经提到这个电容要确认容值，这是一条还没关闭的遗留项。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 2 小时</div>
+    <label><input type="checkbox" data-task="1a"> 打开 TXB0104 和 SN74LVC2G241 的数据手册，各花 20 分钟只读“推荐工作条件”那一页。写下 3 条你的电路刚好满足或没满足的限制。</label>
+    <label><input type="checkbox" data-task="1b"> 用万用表量 DIR = 1 和 DIR = 0 时 B1 的电压，以及 5 V、3.3 V 两路电源的实际电压，记到仓库里。</label>
+    <label><input type="checkbox" data-task="1c"> 确认 B1 上那个电容的容值，关掉这条遗留项。</label>
+    <label class="fin"><input type="checkbox" data-done="1"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L2 -->
+<section class="lesson" id="l2">
+  <div class="meta"><span class="no">第 2 关</span><span>4 小时</span><span class="pips">●●○○○</span><span>入门</span></div>
+  <h2 class="lv">电源与地：电流走哪条路回去</h2>
+  <div class="pit"><div class="ttl">你踩过的坑 <span class="tag fact">项目实录</span></div>
+    地线原来分在两条轨上，只靠一根长跳线连通。现象是应答不正常、发送时 RX 上有回显。把逻辑分析仪的地线和探头接上以后，故障就消失了。最后把所有地都接到同一条轨上才解决。（<code>HANDOFF.md</code> 坑 2）</div>
+
+  <h3>原理</h3>
+  <p>原理图上的地是一个符号，处处 0 V。实物上的地是一段导线，有电阻。电流流过就有压降：</p>
+  <pre><code>地线两端的压差 = 流过的电流 × 这段地线的电阻</code></pre>
+  <p>面包板的一个触点加一根杜邦线，电阻可能有零点几欧。舵机一动就是几百毫安到一两安。于是“舵机的地”和“芯片的地”之间出现了零点几伏的跳动。你的 DIR 信号又是 TXB 弱驱动的，很容易被这个跳动带过门槛，接收通路在发送时被打开，就出现了回显。<span class="tag fact">项目实录</span></p>
+
+  <div class="lab"><div class="cap">实验 · 地线上的压降</div>
+    <div class="row">
+      <label for="g-i"><span>流过这段地线的电流 = <b id="g-iv">1.0</b> A</span><input type="range" id="g-i" min="0" max="60" value="10"></label>
+      <label for="g-r"><span>这段地线的电阻 = <b id="g-rv">200</b> mΩ</span><input type="range" id="g-r" min="1" max="100" value="85"></label>
+    </div>
+    <div class="out" id="g-out"></div>
+    <div class="verdict" id="g-ver"></div>
+    <p class="note" style="margin:8px 0 0">参考：一根好的粗电源线约 10 mΩ，一个面包板触点加杜邦线约 100–300 mΩ。判定用的 50 mV 和 300 mV 是我的经验值，不是标准。电流快速变化时还有电感的作用，实际毛刺比这里算的更大。</p>
+  </div>
+
+  <h3>“接上仪器就好了”是一条线索</h3>
+  <p>逻辑分析仪的地夹子给两块地之间多搭了一条通路，探头又给 DIR 加了一点电容。测量本身改变了电路。遇到这种现象，资深工程师会直接怀疑两件事：<b>地没接好</b>，或者<b>某个节点驱动太弱</b>。你当时两条都中了。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>把地当成 0 V，哪里方便接哪里</li>
+      <li>电机线和信号线共用一根细地线</li>
+      <li>故障消失了就继续往下做</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>接线前先画出电机电流的来回路径</li>
+      <li>电机电流走独立的粗线，逻辑地在一个点接到电源地</li>
+      <li>每个芯片电源脚旁边放去耦电容</li>
+      <li>故障自己消失时，认为它还在，继续找原因</li></ul></div>
+  </div>
+
+  <h3>同一个道理用在电源上</h3>
+  <p>17 个电机全部堵转时理论上约 16 A；按 300 mA 限流约 6 A。JST 小插头的额定电流约 3 A，菊花链的第一根线要扛整条链的电流。<span class="tag calc">推算</span> 电压被拉低时，舵机可能自己重启。从电脑那边看，现象是“通信偶尔掉线”，很容易去查软件，方向就错了。</p>
+
+  <div class="quiz" data-q="q2">
+    <div class="q">握拳动作做到一半，有两个舵机偶尔掉线，过一秒又回来。最先查什么？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">把超时时间调长</button>
+      <button class="opt" data-ok="1">握拳瞬间量 12 V 的最低电压，并读掉线舵机的硬件错误状态</button>
+      <button class="opt" data-ok="0">降低波特率</button>
+    </div>
+    <div class="why">线索有两条：故障和大电流动作同时发生；掉线后能自己回来。这两条都指向供电跌落导致舵机重启。调长超时只是把症状藏起来。量电压要抓最低值，用示波器或万用表的 MIN 记录功能，普通读数看不到瞬间跌落。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 3 小时</div>
+    <label><input type="checkbox" data-task="2a"> 画一张图：12 V 电源、PHB、舵机、面包板、M7C、电脑 USB。用另一种颜色画出电机电流回电源的路径，看它有没有经过逻辑电路的地。</label>
+    <label><input type="checkbox" data-task="2b"> 断电，用蜂鸣档和电阻档量各芯片地脚到电源地的电阻，都应小于 1 Ω。</label>
+    <label><input type="checkbox" data-task="2c"> 手握拳时抓 12 V 的最低电压并记录。如果低于 10 V，记成一条待办。</label>
+    <label class="fin"><input type="checkbox" data-done="2"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L3 -->
+<section class="lesson" id="l3">
+  <div class="meta"><span class="no">第 3 关</span><span>5 小时</span><span class="pips">●●●○○</span><span>进阶</span></div>
+  <h2 class="lv">半双工时序：TXEN 那 20 微秒</h2>
+  <div class="pit"><div class="ttl">你项目里的坑 <span class="tag fact">项目实录</span></div>
+    用 orca_core 配置过舵机链以后，舵机的 Return Delay 从出厂的 500 µs 变成 20 µs。固件必须在最后一个停止位发完后的 20 µs 内把 TXEN 切回接收。（<code>docs/下一步_预紧到换KM1M7C.md</code> 坑 2）你的透传固件是怎么切的，仓库里还没有记录。</div>
+
+  <h3>原理</h3>
+  <p>DATA 是一根线，主机和舵机轮流说话。TXEN = 1 时你的缓冲器在驱动这根线，TXEN = 0 时放开。舵机收完指令，等一个 Return Delay 就开始回答。<span class="tag std">公认</span> 所以放开的时刻有一个窗口：</p>
+  <ul>
+    <li><b>切早了</b>：最后一个字节还没发完就放开，包尾的 CRC 被截断。舵机校验不过，什么都不回。你看到的只是超时。</li>
+    <li><b>切晚了</b>：舵机已经开始回答，你还在驱动总线，两边打架。应答开头几个字节丢失，包头没了，解析不出来。</li>
+  </ul>
+  <p>57600 波特率时一位是 17.4 µs，一个字节 174 µs。20 µs 的窗口只比一位长一点。</p>
+
+  <div class="lab"><div class="cap">实验 · 调 TXEN 放开的时刻</div>
+    <div class="row">
+      <label for="t-baud"><span>波特率</span><select id="t-baud"><option value="57600">57600</option><option value="1000000">1 Mbps</option></select></label>
+      <label for="t-rd"><span>舵机 Return Delay</span><select id="t-rd"><option value="20">20 µs（orca 配置后）</option><option value="500">500 µs（出厂）</option></select></label>
+    </div>
+    <div class="row"><label for="t-off"><span>TXEN 放开时刻（相对最后一个停止位结束）= <b id="t-offv">0</b> µs</span><input type="range" id="t-off" min="-200" max="700" value="0"></label></div>
+    <div class="row">
+      <button id="t-p1">用“发送缓冲空”切</button>
+      <button id="t-p2">用“发送完成 TC”切</button>
+      <button id="t-p3">发完后延时 1 ms 再切</button>
+    </div>
+    <div class="svgbox"><svg id="t-svg" viewBox="0 0 720 190" width="720" height="190" role="img" aria-label="TXEN 时序图"></svg></div>
+    <div class="verdict" id="t-ver"></div>
+    <p class="note" style="margin:8px 0 0">模型做了简化：把“停止位结束之前放开”一律算作截断。三个按钮对应三种常见写法。</p>
+  </div>
+
+  <p>把 Return Delay 切到 500 µs，再点“延时 1 ms”，仍然失败；把滑块拖到 400 µs 附近就能通过。这解释了一种很典型的经历：<b>固件一个字没改，跑过别人的配置工具后突然不通了</b>。原因是舵机里的参数被改了，窗口从 500 µs 缩到 20 µs。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>发完数据加一个 <code>delay</code>，调到能通为止</li>
+      <li>不知道“缓冲空”和“发送完成”是两个标志</li>
+      <li>测一次能通就算通过</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>用 TC 标志；先查 MCU 的串口有没有硬件自动方向控制</li>
+      <li>逻辑分析仪同时抓 TXEN 和 DATA，量出实际余量</li>
+      <li>看 1000 次里最坏的那次，不看平均值</li>
+      <li>想到中断：TC 之后如果被别的中断打断几十微秒，就会偶尔迟到</li></ul></div>
+  </div>
+  <p class="note">很多 MCU 的串口带 RS-485 方向控制功能，硬件自动在停止位结束时翻转一个引脚，不受中断影响。KM1M7C 有没有，需要查它的手册。<span class="tag guess">待查</span></p>
+
+  <div class="quiz" data-q="q3">
+    <div class="q">固件用“发送缓冲空”标志切 TXEN。接一个舵机，ping 它，最可能看到什么？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">应答的前几个字节是乱码</button>
+      <button class="opt" data-ok="1">完全没有应答</button>
+      <button class="opt" data-ok="0">应答正常，只是慢一点</button>
+    </div>
+    <div class="why">缓冲空的时候，最后一个字节刚进移位寄存器，还要一个字节的时间才发完。这时放开总线，CRC 的高字节被截断。舵机收到坏包，按协议保持沉默。“完全没应答”很容易让人去查接线和 ID，而真正的原因在自己发出去的包尾。逻辑分析仪一抓就能看见。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 4 小时</div>
+    <label><input type="checkbox" data-task="3a"> 在你的透传固件里找到切 TXEN 的那几行，确认用的是哪种方式，写进 <code>docs/换M7C_一页纸.md</code> 的“实际改动”。</label>
+    <label><input type="checkbox" data-task="3b"> 逻辑分析仪同时抓 TXEN 和 DATA，ping 一个舵机。量两个数：停止位结束到 TXEN 下降沿；TXEN 下降沿到应答第一位。</label>
+    <label><input type="checkbox" data-task="3c"> 连续抓 200 次全读，找出余量最小的一次，记下数值。</label>
+    <label><input type="checkbox" data-task="3d"> 查 KM1M7C 手册的 UART 一章，看有没有 RS-485 自动方向控制。</label>
+    <label class="fin"><input type="checkbox" data-done="3"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L4 -->
+<section class="lesson" id="l4">
+  <div class="meta"><span class="no">第 4 关</span><span>4 小时</span><span class="pips">●●●○○</span><span>进阶</span></div>
+  <h2 class="lv">时间账：先在纸上算，再去实物上量</h2>
+  <div class="pit"><div class="ttl">你项目里的坑 <span class="tag fact">项目实录</span></div>
+    M7C 的 USB 虚拟串口不管电脑设多少波特率，舵机侧永远是 57600。orca_core 自动探测时先试 1 Mbps，ping 也能通，于是它认定是 1 Mbps。SDK 按 1 Mbps 算出的超时约 38 ms，实际一次全读要约 62 ms，结果每次都超时。（<code>docs/下一步_预紧到换KM1M7C.md</code> 坑 1）</div>
+
+  <h3>原理</h3>
+  <p>串口每发一个字节要 10 位（1 起始 + 8 数据 + 1 停止）。所以：</p>
+  <pre><code>时间 = 字节数 × 10 ÷ 波特率 + 舵机数 × Return Delay
+
+Sync Read 请求  = 14 + 舵机数            字节
+每个舵机的应答  = 11 + 读取长度          字节
+DynamixelSDK 超时 = 应答字节数 × 10 ÷ 它以为的波特率 + 34 ms</code></pre>
+  <p>这个坑的本质是：ping 的包很短，在错误的假设下也能过。<b>系统因为错误的原因恰好能用</b>，直到遇到长包才露馅。<span class="tag calc">推算</span></p>
+
+  <div class="lab"><div class="cap">计算器 · 一轮读写要多久</div>
+    <div class="row">
+      <label for="c-n"><span>总线上的舵机数 = <b id="c-nv">17</b></span><input type="range" id="c-n" min="1" max="17" value="17"></label>
+      <label for="c-baud"><span>实际波特率</span><select id="c-baud"><option value="57600">57600</option><option value="115200">115200</option><option value="1000000">1 Mbps</option></select></label>
+    </div>
+    <div class="row">
+      <label for="c-rd"><span>Return Delay</span><select id="c-rd"><option value="20">20 µs</option><option value="500">500 µs</option></select></label>
+      <label for="c-as"><span>电脑以为的波特率</span><select id="c-as"><option value="1000000">1 Mbps（自动探测误判）</option><option value="57600">57600（config 写死）</option></select></label>
+    </div>
+    <div class="out" id="c-out"></div>
+    <div class="verdict" id="c-ver"></div>
+    <p class="note" style="margin:8px 0 0">读 10 字节（位置 + 速度 + 电流），写 4 字节目标位置。没有计入 USB 和 Python 的开销。17 个舵机、57600、20 µs 时结果是 67.7 ms 和 17.2 ms，和 <code>docs/六块M7C方案调研.md</code> 的表一致。</p>
+  </div>
+
+  <h3>另外两笔容易漏的账</h3>
+  <p><b>USB 转串口芯片的延迟。</b>FTDI 芯片默认攒 16 ms 才把数据交给电脑，每次往返都可能白等这么久，要在驱动设置里把 Latency Timer 改成 1 ms。<span class="tag std">公认</span> 你用 U2D2 时已经改过；换成别的转接器要重新检查。</p>
+  <p><b>整包转发的延迟。</b>仓库里的 <code>firmware/bridge/</code> 是把舵机的应答全部收完，再发给电脑。如果电脑一侧也是 57600 的真串口，17 个舵机的应答要先在总线上走 62 ms，再向电脑发 62 ms，合计约 124 ms，超过 SDK 的 96 ms 超时。你现在用的逐字节透传没有这个问题。<span class="tag calc">推算</span> <span class="tag guess">前提未确认：电脑侧是不是同速真串口；这份固件没上过板</span></p>
+  <p>这是一个真实的取舍：整包转发能查 CRC、能精确切 TXEN，代价是多一个包的延迟。解法有两个方向：把电脑侧的速率提高到远高于舵机侧，或者应答改成边收边转。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>ping 通了就认为配置正确</li>
+      <li>感觉“有点卡”，但说不出该多快</li>
+      <li>超时了就把超时调大</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>动手前算出理论值，写下来</li>
+      <li>实测和理论对不上的地方，就是问题所在</li>
+      <li>能自动探测的参数一律写死</li>
+      <li>用最长的包做验收，不用最短的</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q4">
+    <div class="q">理论算出一轮读写 85 ms，实测平均 140 ms。下一步最有价值的是？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">接受它，理论和实际总有差距</button>
+      <button class="opt" data-ok="1">找出多出来的 55 ms 花在哪：分别量总线上的时间和电脑端的时间</button>
+      <button class="opt" data-ok="0">直接改 1 Mbps</button>
+    </div>
+    <div class="why">多出 55 ms 说明有一笔账没算到。如果它来自 USB 延迟或某个超时在悄悄重试，改 1 Mbps 之后它依然在，那时总线只要 5 ms，这 55 ms 就成了全部。逻辑分析仪量总线，<code>bus_timing.py</code> 量电脑端，两者相减就是中间环节。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 3 小时</div>
+    <label><input type="checkbox" data-task="4a"> 不看计算器，用纸笔算 3 个舵机、57600、Return Delay 20 µs 时一次 Sync Read（10 字节）的时间，再用计算器核对。</label>
+    <label><input type="checkbox" data-task="4b"> 跑 <code>bus_timing.py</code>，把实测平均值、最大值填进“实测记录”表，和理论值对比，写一句话解释差距。</label>
+    <label><input type="checkbox" data-task="4c"> 确认 M7C 到电脑的那一段用的是什么芯片，有没有类似 Latency Timer 的设置。</label>
+    <label class="fin"><input type="checkbox" data-done="4"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L5 -->
+<section class="lesson" id="l5">
+  <div class="meta"><span class="no">第 5 关</span><span>6 小时</span><span class="pips">●●●●○</span><span>进阶</span></div>
+  <h2 class="lv">中断与共享数据：一年才出一次的 bug</h2>
+  <div class="pit"><div class="ttl">埋在代码里还没爆的坑 <span class="tag fact">项目实录</span></div>
+    这一关用的都是 <code>firmware/bridge/bridge.c</code> 的真实代码。它现在在电脑上的测试全过。下面三处在加上“传感器控制”以后才会出问题。</div>
+
+  <h3>先看写对的地方</h3>
+  <pre><code>static volatile uint16_t s_rx_head;   /* written only by the interrupt */
+static volatile uint16_t s_rx_tail;   /* written only by the main loop */</code></pre>
+  <p>环形缓冲的 <code>head</code> 只有中断写，<code>tail</code> 只有主循环写。每个变量只有一个写者，所以不用关中断也安全。<span class="tag std">公认</span></p>
+  <p class="note">依赖的假设：16 位变量的读写在这颗 32 位 MCU 上是一步完成的。什么时候失效：换到 8 位单片机，16 位变量要分两次读，中间可能被中断改掉一半。</p>
+
+  <h3>隐患一：两个写者的计数器</h3>
+  <pre><code>int bridge_submit(...) {          /* 放一个包进队列 */
+    ...
+<span class="hl">    s_q_count++;</span>
+}
+void bridge_poll(void) {          /* 主循环：取一个包发出去 */
+    ...
+<span class="hl">    s_q_count--;</span>
+}</code></pre>
+  <p>现在两个函数都在主循环里调用，没有问题。设计文档说以后传感器控制“每 20 ms 放一个包进队列”。新人很自然会把 <code>bridge_submit()</code> 写进定时器中断。这时 <code>s_q_count</code> 就有了两个写者。<code>s_q_count--</code> 在机器上是三步：读出来、减一、写回去。点下面的按钮，看中断插在中间会怎样。</p>
+
+  <div class="lab"><div class="cap">单步演示 · 中断插进 s_q_count-- 中间</div>
+    <div class="step" id="rc-steps"></div>
+    <div class="mem"><span>内存里的 s_q_count = <b id="rc-mem">2</b></span><span>主循环的寄存器 R0 = <b id="rc-reg">-</b></span><span>队列里真实的包数 = <b id="rc-real">2</b></span></div>
+    <div class="row"><button class="pri" id="rc-next">下一步</button><button id="rc-reset">重来</button></div>
+    <div class="verdict" id="rc-ver"></div>
+  </div>
+  <p>这种 bug 只在中断恰好落在那两三条指令之间时发生，可能几天才一次，而且现象和原因离得很远：你看到的是“手的动作偶尔慢半拍”。</p>
+  <p>三种改法，各有取舍：</p>
+  <ul>
+    <li><b>中断里只置一个标志，主循环看到标志再提交。</b>最简单，你的设计文档画的就是这种。代价是提交时刻有一点抖动。<span class="tag guess">推荐</span></li>
+    <li><b>改计数时短暂关中断。</b>通用做法。代价是关中断期间会影响别的中断的响应，比如第 3 关的 TXEN。</li>
+    <li><b>去掉计数器，只用 head 和 tail。</b>和上面的环形缓冲一样，每个变量一个写者。代价是队列要空一格。</li>
+  </ul>
+
+  <h3>隐患二：悄悄丢掉的字节</h3>
+  <pre><code>void bridge_pc_rx_isr(uint8_t byte) {
+    uint16_t next = (s_rx_head + 1) & (BRIDGE_PC_RX_BUF - 1);
+<span class="hl">    if (next == s_rx_tail) return;           /* full: drop the byte */</span>
+    ...</code></pre>
+  <p>缓冲满了就丢字节，这个处理本身合理。问题是它没有留下任何痕迹。统计结构里有 CRC 错、超时、队列满、无应答五个计数器，唯独没有“缓冲溢出”。将来真的丢了，你只会看到下游的“偶尔 CRC 错”，然后去查线、查干扰。</p>
+  <p><b>规则：每一条“丢弃”和“放弃”的分支，都要有一个计数器。</b>写一行代码，省几天排查。<span class="tag guess">我的判断</span></p>
+
+  <h3>隐患三：阻塞和时钟粒度</h3>
+  <p><code>run_transaction()</code> 在等应答时不返回。普通事务等到总线安静 3 ms，广播 ping 固定等 800 ms。现在只转发电脑的包，没有问题。加上 20 ms 的控制周期以后，一次广播 ping 会让控制停 800 ms，手保持着上一个目标不动。</p>
+  <p>还有一笔小账：“安静 3 ms 就算应答结束”意味着每个事务固定多付 3 ms。57600 时全读要 68 ms，可以忽略。1 Mbps 时全读只要 4 ms，这 3 ms 就占了将近一半。<span class="tag calc">推算</span> 到那时要改成按应答长度收，收够就结束。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>变量在中断和主循环里都用，加个 <code>volatile</code> 就放心了</li>
+      <li>测试通过就认为没有竞争问题</li>
+      <li>出错分支写 <code>return</code> 了事</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>给每个共享变量标明谁写、谁读，写进注释</li>
+      <li>知道 <code>volatile</code> 只保证每次都去读内存，不保证“读改写”不被打断</li>
+      <li>竞争问题靠读代码推理，不靠测试碰运气</li>
+      <li>在头文件里写清楚：这个函数能不能在中断里调用</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q5">
+    <div class="q">给 <code>s_q_count</code> 加上 <code>volatile</code>，能解决隐患一吗？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">能，volatile 就是用来处理中断共享的</button>
+      <button class="opt" data-ok="1">不能，读、减、写还是三步，中间照样能被打断</button>
+      <button class="opt" data-ok="0">能，但会变慢</button>
+    </div>
+    <div class="why"><code>volatile</code> 只告诉编译器“这个变量随时可能变，每次用都要重新读，不要缓存”。它不会把三步合成一步。要保证一段操作不被打断，得靠“只有一个写者”的结构，或者关中断。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 5 小时</div>
+    <label><input type="checkbox" data-task="5a"> 通读 <code>bridge.c</code>，列一张表：每个 <code>static</code> 变量，谁写、谁读、在中断里还是主循环里。</label>
+    <label><input type="checkbox" data-task="5b"> 给 <code>bridge_stats_t</code> 加一个 <code>pc_rx_overflow</code> 计数器，在丢字节的那一行加一。</label>
+    <label><input type="checkbox" data-task="5c"> 在 <code>firmware/test/bridge_test.c</code> 里加一个用例：一口气塞 1100 个字节，检查计数器不为 0。在电脑上编译跑通。</label>
+    <label><input type="checkbox" data-task="5d"> 在 <code>bridge.h</code> 的 <code>bridge_submit()</code> 注释里加一句：只能在主循环调用。</label>
+    <label class="fin"><input type="checkbox" data-done="5"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L6 -->
+<section class="lesson" id="l6">
+  <div class="meta"><span class="no">第 6 关</span><span>5 小时</span><span class="pips">●●●●○</span><span>高阶</span></div>
+  <h2 class="lv">协议与故障：让错误看得见</h2>
+  <div class="pit"><div class="ttl">埋在代码里还没爆的坑 <span class="tag fact">项目实录</span></div>
+    <code>firmware/dxl/dxl.c</code> 判断应答是否出错的那一行，把错误字节的最高位屏蔽掉了：
+    <pre style="margin:8px 0 0"><code>return (s_rx[IDX_ERR] &amp; 0x7F) ? DXL_ERR_STATUS : DXL_OK;</code></pre></div>
+
+  <h3>原理</h3>
+  <p>Protocol 2.0 的应答包里有一个错误字节。低 7 位是这条指令的错误码。最高位叫 Alert，表示舵机自己出了硬件故障：过载、过热、电压异常。<span class="tag std">公认</span> Alert 置位后，要去读地址 70 的 Hardware Error Status 才知道具体是哪一种。</p>
+  <p>X 系列舵机发生过载后会自动关掉扭矩，之后写目标位置它也不动，要发 Reboot 指令才恢复。<span class="tag std">公认</span> 腱绳手顶到限位时，过载是最常见的故障。按现在的代码，这时驱动返回 <code>DXL_OK</code>，一切看起来正常，只是手不动。</p>
+
+  <div class="lab"><div class="cap">工具 · 应答包解码</div>
+    <div class="row"><label for="p-in"><span>粘贴一个应答包（十六进制）</span><input type="text" id="p-in" value="FF FF FD 00 01 04 00 55 00 A1 0C" spellcheck="false" autocomplete="off"></label></div>
+    <div class="row">
+      <button data-pkt="ok">正常应答</button>
+      <button data-pkt="alert">带 Alert 的应答</button>
+      <button data-pkt="range">数值超范围</button>
+      <button data-pkt="bad">CRC 被改坏</button>
+    </div>
+    <div class="out" id="p-out"></div>
+    <div class="verdict" id="p-ver"></div>
+  </div>
+  <p>点“带 Alert 的应答”，错误字节是 <code>80</code>。按 <code>&amp; 0x7F</code> 算，结果是 0，被当成正常。</p>
+
+  <h3>藏在舵机里的状态</h3>
+  <p>舵机控制表的前 64 个地址存在 EEPROM 里，掉电不丢：ID、波特率、Return Delay、运行模式、方向、各种限制。<span class="tag std">公认</span> 这些值会被任何连过它的软件改掉。第 3 关的 Return Delay 就是这样变的。</p>
+  <p>资深的做法是把“我期望的配置”写成一张表，每次上电先把 17 个舵机的这些值读回来比对，对不上就拒绝启动，并说清楚是哪个舵机的哪一项。你的 <code>bus_timing.py</code> 已经会读 Return Delay，把它扩展一下就是启动自检。</p>
+
+  <h3>改不回来的操作，先验证退路</h3>
+  <p>把 17 个舵机从 57600 改到 1 Mbps，改到第 9 个时出错，总线上就有两种波特率。你的文档里已经写了对策：先确认能用 U2D2 和 Wizard 把舵机救回来，再动手。这条原则可以推广到所有写 EEPROM、刷固件、改硬件的操作。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>只判断“通信成功了没有”</li>
+      <li>读失败时继续用上一次的数值</li>
+      <li>直接开始改，出事了再想办法</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>区分三层：通信通不通、指令对不对、设备本身好不好</li>
+      <li>数据带上“是否新鲜”的标记，过期数据不进控制</li>
+      <li>上电自检，把隐藏状态变成明面上的检查</li>
+      <li>动手前先演练一遍恢复步骤</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q6">
+    <div class="q">握拳后有一根手指松开了，再发指令也不动。ping 它有应答。最可能的原因和处理是？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">腱绳断了，拆开检查</button>
+      <button class="opt" data-ok="1">舵机过载保护了。读地址 70 确认，降低电流或检查是否卡住，再 Reboot</button>
+      <button class="opt" data-ok="0">总线干扰，降低波特率</button>
+    </div>
+    <div class="why">通信正常说明线和电源都在。扭矩没了但舵机活着，这是保护动作的特征。先读地址 70 花一秒钟，拆手要一小时。如果确认是过载，要回答“为什么会过载”：腱绳太紧、关节卡住，还是电流限制设得不对。直接 Reboot 再跑只会再来一次。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 4 小时</div>
+    <label><input type="checkbox" data-task="6a"> 改 <code>dxl.c</code>：Alert 位置位时返回一个新的错误码（比如 <code>DXL_ERR_ALERT</code>），并在 <code>host_test.c</code> 加一个假舵机回 <code>0x80</code> 的用例。</label>
+    <label><input type="checkbox" data-task="6b"> 写一个只读脚本，读出 17 个舵机的地址 70、Return Delay、运行模式、电流限制，存成一张“体检表”放进仓库。</label>
+    <label><input type="checkbox" data-task="6c"> 在桌面上拿一个不带负载的舵机，用手挡住它制造一次过载，观察 Alert 位和地址 70，再用 Reboot 恢复。</label>
+    <label class="fin"><input type="checkbox" data-done="6"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L7 -->
+<section class="lesson" id="l7">
+  <div class="meta"><span class="no">第 7 关</span><span>4 小时</span><span class="pips">●●●●○</span><span>高阶</span></div>
+  <h2 class="lv">会动的东西：软件能撤销，机械不能</h2>
+  <div class="pit"><div class="ttl">你踩过的坑 <span class="tag fact">项目实录</span></div>
+    小角度测试都正常。测最大活动范围时，中指外展腱绳的结被拉穿了孔，掉进手掌通道。当时用的是官方默认的 300 mA。修复花了好几天。（<code>docs/遇到问题/中指ABD腱绳脱出.md</code>）</div>
+
+  <h3>原理</h3>
+  <p>关节顶到机械限位以后，位置控制会让电机一直用上限电流拉。这个力全部压在腱绳的结上。软件写错了可以回退一个版本；结拉穿了要拆手。两种错误的代价差了几个数量级，所以对待方式也该不同。</p>
+  <p>做法叫<b>分级放能量</b>：每次只把一个量放大一级，确认没有异常再放下一级。</p>
+  <div class="tbl"><table>
+  <thead><tr><th>维度</th><th>第一级</th><th>第二级</th><th>第三级</th></tr></thead>
+  <tbody>
+  <tr><td>电流上限</td><td class="num">60 mA</td><td class="num">150 mA</td><td class="num">300 mA</td></tr>
+  <tr><td>运动范围</td><td>中立位附近 ±10%</td><td>一半行程</td><td>全行程</td></tr>
+  <tr><td>运动对象</td><td>一个关节</td><td>一根手指</td><td>整只手</td></tr>
+  <tr><td>速度</td><td>慢，看得清</td><td>正常</td><td>演示速度</td></tr>
+  </tbody></table></div>
+  <p>60 → 150 → 300 mA 这个台阶，你在 <code>docs/腱绳收紧确认.md</code> 的单舵机实验里已经用过。出事的那次是直接在 300 mA 下跑全行程，跳过了前两级。</p>
+  <p class="note">依赖的假设：小电流下能暴露的问题，大电流下同样存在。什么时候失效：有些问题只在大力时出现，比如结慢慢滑动。所以每一级都要盯着电流读数和声音，在最高一级停留久一点。</p>
+
+  <h3>失效安全：电脑不在了，手怎么办</h3>
+  <p>Python 程序崩溃、USB 被碰掉、电脑休眠。这时舵机保持着最后一个目标位置继续出力，时间长了会发热。X 系列舵机有 Bus Watchdog 功能（地址 98）：超过设定时间没收到指令，舵机自己停下来。<span class="tag std">公认</span> <span class="tag guess">启用前请在 e-Manual 里核对你的型号和单位</span></p>
+  <p>“停下来”对一只手意味着什么，没有标准答案。关扭矩，手会松开，拿着的东西会掉。保持位置，电机会一直发热。这需要事先决定并写下来。你的六块 M7C 调研里已经提出了这个问题，还没有答案。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>装好就想看完整演示</li>
+      <li>用默认参数，“官方的应该没问题”</li>
+      <li>没想过程序崩了硬件会怎样</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>上电前问三句：最坏会坏什么？能不能修？修多久？</li>
+      <li>第一次运行时，一只手放在电源开关上</li>
+      <li>每个新动作都从最低一级开始</li>
+      <li>为“通信断了”设计好行为，并且实际拔线测一次</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q7">
+    <div class="q">你刚换了一根腱绳。下面哪个顺序最稳妥？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">直接跑一次完整标定，它会自己找限位</button>
+      <button class="opt" data-ok="1">断电手动扳关节检查 → 小电流单关节小范围 → 逐级加大 → 最后标定</button>
+      <button class="opt" data-ok="0">先跑握拳演示，没问题再标定</button>
+    </div>
+    <div class="why">标定的原理是让电机顶到限位，它本身就是一次全行程加上限电流的测试，正好是出事那次的条件。断电用手扳不需要任何能量，却能发现绳子走错槽、结没卡住这类问题。越便宜、越安全的检查越要放在前面。</div>
+  </div>
+  <div class="quiz" data-q="q7b">
+    <div class="q">“官方默认参数下出的事，所以不是我的问题。”这句话哪里不对？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">没有不对</button>
+      <button class="opt" data-ok="1">默认值是为官方的硬件版本调的，你的 v2.0 没有 PTFE 管，摩擦更大</button>
+      <button class="opt" data-ok="0">官方参数通常都是错的</button>
+    </div>
+    <div class="why">你的事故记录里已经分析到了这一点：v2.1 加了 PTFE 管并且调整了各关节的标定电流。默认值附带着一组前提条件。用别人的参数之前，先确认自己的硬件满足这些前提；不确定时从更保守的值开始。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 3 小时</div>
+    <label><input type="checkbox" data-task="7a"> 写一页“改动后首次上电检查表”：断电检查、电流分级、范围分级，每一级的通过标准。放进 <code>docs/</code>。</label>
+    <label><input type="checkbox" data-task="7b"> 拿一个不带负载的舵机试 Bus Watchdog：设好以后停止发指令，看它是否停下，再看怎么恢复。</label>
+    <label><input type="checkbox" data-task="7c"> 决定并写下：通信中断时这只手应该关扭矩还是保持。写明理由。</label>
+    <label class="fin"><input type="checkbox" data-done="7"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L8 -->
+<section class="lesson" id="l8">
+  <div class="meta"><span class="no">第 8 关</span><span>6 小时</span><span class="pips">●●●●●</span><span>高阶</span></div>
+  <h2 class="lv">系统设计：六块 M7C 怎么分</h2>
+  <div class="pit"><div class="ttl">你正在做的事 <span class="tag fact">项目实录</span></div>
+    下一个任务是用 6 块 M7C 控制这只手，一根手指一块。调研已经写好（<code>docs/六块M7C方案调研.md</code>），还没动手。这一关把那份调研当作案例，看资深工程师在动手之前想些什么。</div>
+
+  <h3>第一问：到底要解决什么</h3>
+  <p>如果目的是“更快”，把现在的单总线提到 1 Mbps 就够了，不用加板子。分成六块真正带来的是故障隔离、走线变短、以后每根手指可以本地控制。目的不同，方案就不同。新人拿到任务就开始做；资深会先把目的问清楚，再带着两三个方案和各自的代价回去讨论。</p>
+
+  <div class="lab"><div class="cap">对比 · 一轮读写的时间</div>
+    <div class="row">
+      <label for="a-baud"><span>波特率</span><select id="a-baud"><option value="57600">57600</option><option value="1000000">1 Mbps</option></select></label>
+    </div>
+    <div class="bars" id="a-bars"></div>
+    <div class="verdict" id="a-ver"></div>
+    <p class="note" style="margin:8px 0 0">分组按调研：五条总线各 3 个电机，一条 2 个。理论值，不含 USB 和电脑端开销。</p>
+  </div>
+  <p>六条总线轮流跑，比现在的单总线还慢，因为每条总线都要付一次包头和往返的固定开销。只有六条同时跑才有收益。所以电脑端的并行是硬要求。</p>
+
+  <h3>分开以后新出现的问题</h3>
+  <div class="tbl"><table>
+  <thead><tr><th>问题</th><th>单总线时</th><th>六总线时</th><th>对策</th></tr></thead>
+  <tbody>
+  <tr><td>地线</td><td>一处接地</td><td>六块板同时连着 USB 地和电机地，形成环路</td><td>第 2 关的做法：电机电流走独立粗线，逻辑地单点接</td></tr>
+  <tr><td>COM 号</td><td>一个，写死也行</td><td>换个 USB 口，食指和小指就可能对调</td><td>连接时逐个 ping，按回答的 ID 认板子，对不上就拒绝启动</td></tr>
+  <tr><td>部分故障</td><td>要么全通要么全断</td><td>可能五根手指在动，一根掉线</td><td>事先定好策略并测试（第 7 关）</td></tr>
+  <tr><td>同时性</td><td>一个 Sync Write 同时生效</td><td>六条总线之间差 1–2 ms <span class="tag guess">推测</span></td><td>用逻辑分析仪量出来，再判断要不要管</td></tr>
+  <tr><td>DATA 隔离</td><td>不存在</td><td>共用一块 PHB 可能把六条总线连在一起 <span class="tag guess">推测</span></td><td>接线前断电量通断</td></tr>
+  </tbody></table></div>
+  <p>规律：<b>把一个东西拆成多个，会产生一批“它们之间”的问题</b>。同步、识别、部分失效，这些在单个的时候都不存在。做方案对比时，这一类成本最容易被漏算。</p>
+
+  <h3>先做哪一步</h3>
+  <p>调研里的实施顺序，第一步是只分两条：把食指拆到第二块 M7C，其余不动。这一步花费最小，却能同时检验固件能否复用、地线有没有问题、合成软件能不能工作。</p>
+  <p>这是一种排序方法：<b>先做最能消除不确定性的那一步</b>。新人常按“先做容易的”或“先做最有成就感的”来排，比如先画六路 PCB。结果板子打回来才发现方案有问题。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>领导说六块板，就开始接六块板</li>
+      <li>只比较方案的优点</li>
+      <li>先做完硬件，再写软件，最后联调</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>先确认目的，带着方案对比去沟通</li>
+      <li>给每个方案问四句：坏一块会怎样？怎么调试？怎么退回去？会不会堵死以后的路？</li>
+      <li>用最小的一步验证最大的未知</li>
+      <li>把“推测”列成清单，逐条变成“实测”</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q8">
+    <div class="q">六块板都接好了，演示时食指和小指的动作对调了。根本原因最可能是什么？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">舵机 ID 设错了</button>
+      <button class="opt" data-ok="1">软件按 COM 号认板子，而 Windows 这次分配的 COM 号和上次不一样</button>
+      <button class="opt" data-ok="0">标定文件损坏</button>
+    </div>
+    <div class="why">COM 号由操作系统分配，换 USB 口、换电脑、甚至重启后都可能变。它不是板子的身份。能当身份用的是板子自己能回答的东西：总线上舵机的 ID。按 ID 认板子以后，线随便插都不会错。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 5 小时</div>
+    <label><input type="checkbox" data-task="8a"> 回答调研第 7 节的五个问题，尤其是第一个：分板的目的。把答案写回文档。</label>
+    <label><input type="checkbox" data-task="8b"> 断电量 PHB 两个接口的 DATA 是否连通，把“推测”改成“实测”。</label>
+    <label><input type="checkbox" data-task="8c"> 做调研里的步骤 1：只把食指分到第二块 M7C，两个 COM 各自扫描到正确的 ID。</label>
+    <label><input type="checkbox" data-task="8d"> 写一页给领导的说明：三个方案、各自代价、你的推荐和理由。不超过一页。</label>
+    <label class="fin"><input type="checkbox" data-done="8"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== L9 -->
+<section class="lesson" id="l9">
+  <div class="meta"><span class="no">第 9 关</span><span>2.5 小时</span><span class="pips">●●○○○</span><span>收尾</span></div>
+  <h2 class="lv">工程纪律：让三个月后的人看得懂</h2>
+  <div class="pit"><div class="ttl">项目当前最大的一条风险 <span class="tag fact">项目实录</span> <span class="tag guess">我的判断</span></div>
+    让这只手动起来的透传固件不在仓库里。11 月 4 日换 M7C 时的改动是在另一台电脑上做的，<code>docs/换M7C_一页纸.md</code> 的“实际改动”一节还空着。仓库里的 <code>firmware/bridge/</code> 是另一份代码，没有上过板。</div>
+
+  <h3>为什么这件事重要</h3>
+  <p>现在如果那块 M7C 坏了，或者那台电脑的硬盘坏了，这只手就回不到“能动”的状态，要重新摸索一遍。第 8 关要把同一份固件烧进六块板，更需要一份确定的、可重建的版本。</p>
+  <p>标准只有一条：<b>一个没参与过的人，只拿到仓库，能不能把板子恢复到现在的状态？</b>要做到，需要这些东西都在仓库里：</p>
+  <ul>
+    <li>固件源码和 Keil 工程文件</li>
+    <li>编译器版本、芯片包版本</li>
+    <li>烧录步骤，用哪个工具、哪些选项</li>
+    <li>引脚分配：哪个串口接哪里，TXEN 是哪个引脚</li>
+    <li>给能跑的版本打一个标签，比如“2026-11-04 手第一次用 M7C 动起来”</li>
+  </ul>
+  <p>再进一步：让固件能回答“你是哪个版本”。上电时从调试串口打印版本号和编译日期。六块板里有一块行为不一样时，这一行能省很多时间。</p>
+
+  <h3>你已经做对的</h3>
+  <p><code>HANDOFF.md</code> 记录了每一步的状态和踩过的坑；调研文档把结论分成“源码确认、算出来的、推测、没有验证”；数据包用脚本生成而不手算；驱动有电脑上跑的测试。腱绳事故的记录按“现象、原因、已排除、处理、预防”写，这正是业内事后复盘的格式。保持下去。</p>
+
+  <div class="vs">
+    <div class="jr"><div class="who">新人</div><ul>
+      <li>能跑的版本在自己电脑的某个文件夹里</li>
+      <li>提交说明写“修改”“更新”</li>
+      <li>文档写“已完成”，不写怎么验证的</li></ul></div>
+    <div class="sr"><div class="who">资深</div><ul>
+      <li>实物上跑的每一个版本都能从仓库重建</li>
+      <li>提交说明写“为什么改”</li>
+      <li>文档里区分“我测过”和“我认为”</li>
+      <li>遗留问题列成清单，有人负责，有期限</li></ul></div>
+  </div>
+
+  <div class="quiz" data-q="q9">
+    <div class="q">下面哪条提交说明，三个月后最有用？</div>
+    <div class="opts">
+      <button class="opt" data-ok="0">更新固件</button>
+      <button class="opt" data-ok="0">修改 uart.c 第 88 行</button>
+      <button class="opt" data-ok="1">TXEN 改用 TC 标志切换：Return Delay 20 µs 时原来的延时方式会丢应答开头，逻辑分析仪实测余量 12 µs</button>
+    </div>
+    <div class="why">改了哪一行，版本工具自己会显示。它显示不了的是原因和证据。第三条说明了改之前的问题、改法和验证结果。以后有人想把它改回去时，会先看到这条理由。</div>
+  </div>
+
+  <div class="todo"><div class="cap">动手任务 · 约 2 小时</div>
+    <label><input type="checkbox" data-task="9a"> 把透传固件的源码和 Keil 工程收进仓库（先确认符合公司的规定），补上“实际改动”一节。</label>
+    <label><input type="checkbox" data-task="9b"> 写一页“从零恢复”：新板子拿到手，按哪几步能让手动起来。请一位同事照着做一遍，记下他卡住的地方。</label>
+    <label><input type="checkbox" data-task="9c"> 把这门课里发现的遗留项列成清单放进 <code>HANDOFF.md</code>：B1 电容、TXEN 方式、Alert 位、溢出计数器、失效策略。</label>
+    <label class="fin"><input type="checkbox" data-done="9"> 本关完成</label>
+  </div>
+</section>
+
+<!-- ============================== ROAD -->
+<section class="lesson" id="road">
+  <div class="meta"><span class="no">结业之后</span></div>
+  <h2 class="lv">之后的路</h2>
+  <p>下面的时间是我的估计，因人而异。<span class="tag guess">我的判断</span></p>
+  <div class="tbl"><table>
+  <thead><tr><th>阶段</th><th>时间</th><th>做什么</th><th>达到的标志</th></tr></thead>
+  <tbody>
+  <tr><td>这门课</td><td class="num">40 小时</td><td>十关的任务全部在实物上做完</td><td>遇到这十类问题，知道先查什么</td></tr>
+  <tr><td>把这只手做完整</td><td class="num">3–6 个月</td><td>1 Mbps、六总线、MCU 上的传感器闭环。每个里程碑写一篇复盘</td><td>能独立把一个功能从想法做到稳定运行</td></tr>
+  <tr><td>补硬件</td><td class="num">6–12 个月</td><td>自己画一块板子、打样、焊接、调试。学会用示波器。学一个实时操作系统</td><td>出问题时能判断是硬件还是软件</td></tr>
+  <tr><td>带项目</td><td class="num">之后几年</td><td>经历一次从立项到交付，包括现场故障</td><td>能预估工期和风险，能在评审时指出别人没看到的失效方式</td></tr>
+  </tbody></table></div>
+
+  <h3>值得读的东西</h3>
+  <ul>
+    <li><b>Elecia White《Making Embedded Systems》</b>：最接近“资深工程师口述经验”的一本，覆盖架构、中断、调试、功耗。</li>
+    <li><b>Philip Koopman《Better Embedded System Software》</b>：每章一个常见错误，可以当检查表用。</li>
+    <li><b>Jack Ganssle 的 The Embedded Muse 通讯</b>：多年积累的实战故事。</li>
+    <li><b>你用到的每一颗芯片的数据手册和 ROBOTIS e-Manual</b>：这是唯一的一手资料。每遇到一个问题，回去读对应的那一章。</li>
+  </ul>
+
+  <h3>一个可以一直用的方法</h3>
+  <p>每次卡住超过半小时，解决以后花十分钟写下四行：现象是什么；我最初以为是什么；实际是什么；怎样能更早发现。攒到五十条时回头看，你会发现大部分问题落在少数几类里。那几类就是你自己的经验。</p>
+</section>
+
+<footer>
+  <p>依据：仓库 <code>GuangxianZhu/whj_MCU</code>，main 分支，提交 <code>62519f2</code>。所有“项目实录”都来自这个版本的文档和代码。计算器里的公式和仓库文档里的数字核对过。课程里指出的代码隐患是读代码推理出来的，没有在实物上复现。</p>
+  <p><button id="reset-all">清除学习进度</button> <span id="reset-msg" class="note"></span></p>
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var HOURS=[0.5,3,4,5,4,6,5,4,6,2.5], TOTAL=40, KEY="orca-course-v1";
+
+/* ---------- 进度：只存在这个浏览器里，读写失败时照常显示 ---------- */
+var state={};
+try{state=JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){state={}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function refreshProgress(){
+  var done=0;
+  document.querySelectorAll("#navlist li[data-l]").forEach(function(li){
+    var i=+li.dataset.l, ok=!!state["done"+i];
+    li.classList.toggle("done",ok); if(ok)done+=HOURS[i];
+  });
+  $("pbar").style.width=(done/TOTAL*100)+"%";
+  $("plabel").textContent="已完成 "+done+" / "+TOTAL+" 小时";
+}
+document.querySelectorAll("input[type=checkbox][data-task],input[type=checkbox][data-done]").forEach(function(cb){
+  var k=cb.dataset.task?("task"+cb.dataset.task):("done"+cb.dataset.done);
+  cb.checked=!!state[k];
+  cb.addEventListener("change",function(){state[k]=cb.checked;save();refreshProgress()});
+});
+var armed=false;
+$("reset-all").addEventListener("click",function(){
+  if(!armed){armed=true;this.textContent="再点一次确认清除";return}
+  state={};save();armed=false;this.textContent="清除学习进度";
+  document.querySelectorAll("input[type=checkbox]").forEach(function(c){c.checked=false});
+  document.querySelectorAll(".quiz").forEach(function(q){q.classList.remove("answered");q.querySelectorAll(".opt").forEach(function(o){o.classList.remove("right","wrong")})});
+  refreshProgress();$("reset-msg").textContent="已清除。";
+});
+
+/* ---------- 小测 ---------- */
+document.querySelectorAll(".quiz").forEach(function(q){
+  q.querySelectorAll(".opt").forEach(function(b){
+    b.addEventListener("click",function(){
+      q.querySelectorAll(".opt").forEach(function(o){o.classList.remove("wrong");if(o.dataset.ok==="1")o.classList.add("right")});
+      if(b.dataset.ok!=="1")b.classList.add("wrong");
+      q.classList.add("answered");
+    });
+  });
+});
+
+function verdict(el,cls,text){el.className="verdict "+cls;el.textContent=text}
+
+/* ---------- 第 1 关：分压 ---------- */
+function divider(){
+  var r=Math.pow(10,(+$("r-pull").value)/200*Math.log10(200)); /* 1..200 kΩ，对数刻度 */
+  r=r<10?Math.round(r*10)/10:Math.round(r);
+  var v=5*r/(r+4), m=v-3.5;
+  $("r-val").textContent=r;
+  $("r-out").textContent="V(B1) = 5 × "+r+" / ("+r+" + 4) = "+v.toFixed(2)+" V\n门槛 = 3.50 V    余量 = "+(m>=0?"+":"")+m.toFixed(2)+" V";
+  $("r-out").style.whiteSpace="pre";
+  if(m<0)verdict($("r-ver"),"no","低于门槛。DIR 的高电平不被认作高，发送通路打不开。");
+  else if(m<0.5)verdict($("r-ver"),"mid","勉强过线，余量不到 0.5 V。现在能用，条件一变就时好时坏。");
+  else verdict($("r-ver"),"ok","余量充足。数据手册建议上下拉电阻不小于 50 kΩ，道理就在这里。");
+}
+$("r-pull").addEventListener("input",divider);divider();
+
+/* ---------- 第 2 关：地线压降 ---------- */
+function ground(){
+  var i=(+$("g-i").value)/10, r=Math.pow(10,(+$("g-r").value)/100*Math.log10(500));r=r<100?Math.round(r):Math.round(r/10)*10;
+  var mv=i*r;
+  $("g-iv").textContent=i.toFixed(1);$("g-rv").textContent=r;
+  $("g-out").textContent="压差 = "+i.toFixed(1)+" A × "+r+" mΩ = "+Math.round(mv)+" mV";
+  if(mv<50)verdict($("g-ver"),"ok","很小。两边的芯片看到的地基本一致。");
+  else if(mv<300)verdict($("g-ver"),"mid","可疑。强驱动的信号还能承受，弱驱动的节点（比如你的 DIR）可能被带偏。");
+  else verdict($("g-ver"),"no","危险。两边芯片对“0”的理解已经差了零点几伏，再叠加瞬间毛刺就会误动作。");
+}
+$("g-i").addEventListener("input",ground);$("g-r").addEventListener("input",ground);ground();
+
+/* ---------- 第 3 关：TXEN 时序 ---------- */
+var tOff=0;
+function tBt(){return 1e7/(+$("t-baud").value)}           /* 一个字节的微秒数 */
+function tRange(){var bt=tBt(),s=$("t-off");s.min=Math.round(-1.5*bt);s.max=Math.round(6.5*bt);s.step=bt>50?2:1}
+function drawTiming(){
+  var bt=tBt(), rd=+$("t-rd").value, off=tOff;
+  var s=$("t-off"); s.value=Math.max(+s.min,Math.min(+s.max,off));
+  $("t-offv").textContent=(off>0?"+":"")+Math.round(off);
+  var t0=-2.5*bt, t1=7.5*bt, X=function(t){return 96+(Math.max(t0,Math.min(t1,t))-t0)/(t1-t0)*612};
+  var h='';
+  h+='<text x="4" y="42">主机发送</text><text x="4" y="92">TXEN</text><text x="4" y="142">舵机应答</text>';
+  h+='<rect class="tx" x="'+X(t0)+'" y="26" width="'+(X(-2*bt)-X(t0))+'" height="24"/><text class="mut" x="'+(X(t0)+6)+'" y="42">…</text>';
+  [["CRC_L",-2],["CRC_H",-1]].forEach(function(b){var x=X(b[1]*bt),w=X((b[1]+1)*bt)-x;h+='<rect class="tx" x="'+x+'" y="26" width="'+w+'" height="24"/><text x="'+(x+w/2)+'" y="42" text-anchor="middle">'+b[0]+'</text>'});
+  var names=["FF","FF","FD","00","ID","LEN","LEN","55"];
+  for(var k=0;k<names.length;k++){var a=rd+k*bt;if(a>=t1)break;var x=X(a),w=X(a+bt)-x;if(w<4)break;h+='<rect class="sv" x="'+x+'" y="126" width="'+w+'" height="24"/><text x="'+(x+w/2)+'" y="142" text-anchor="middle">'+names[k]+'</text>'}
+  var xo=X(off);
+  h+='<polyline class="dir" points="'+X(t0)+',76 '+xo+',76 '+xo+',100 '+X(t1)+',100"/>';
+  if(off<0)h+='<rect class="hit" x="'+xo+'" y="22" width="'+(X(0)-xo)+'" height="32"/>';
+  if(off>rd)h+='<rect class="hit" x="'+X(rd)+'" y="122" width="'+(xo-X(rd))+'" height="32"/>';
+  h+='<line class="dash" x1="'+X(0)+'" y1="14" x2="'+X(0)+'" y2="160"/><text class="mut" x="'+X(0)+'" y="176" text-anchor="end">停止位结束</text>';
+  h+='<line class="dash" x1="'+X(rd)+'" y1="110" x2="'+X(rd)+'" y2="160"/><text class="mut" x="'+(X(rd)+4)+'" y="176">舵机开始回答（+'+rd+' µs）</text>';
+  $("t-svg").innerHTML=h;
+  var v=$("t-ver");
+  if(off<0)verdict(v,"no","切早了 "+Math.round(-off)+" µs，约 "+(-off/bt*10).toFixed(1)+" 位。最后一个字节被截断，舵机校验失败，不回答。你只会看到超时。");
+  else if(off<=rd)verdict(v,"ok","通过。离舵机开始回答还有 "+Math.round(rd-off)+" µs 余量"+(rd-off<bt/10?"，不到一位的时间，任何一次中断延迟都可能越线。":"。"));
+  else verdict(v,"no","切晚了。舵机已经回答了 "+Math.round(off-rd)+" µs，约 "+Math.ceil((off-rd)/bt)+" 个字节和你的驱动冲突，包头丢失，应答无法解析。");
+}
+$("t-off").addEventListener("input",function(){tOff=+this.value;drawTiming()});
+$("t-baud").addEventListener("change",function(){tRange();tOff=0;drawTiming()});
+$("t-rd").addEventListener("change",drawTiming);
+$("t-p1").addEventListener("click",function(){tOff=-tBt();drawTiming()});
+$("t-p2").addEventListener("click",function(){tOff=1;drawTiming()});
+$("t-p3").addEventListener("click",function(){tOff=1000;drawTiming()});
+tRange();drawTiming();
+
+/* ---------- 第 4 / 8 关：时间账 ---------- */
+function busTime(n,baud,rdUs){                 /* 读 10 字节，写 4 字节；返回毫秒 */
+  var ms=function(bytes){return bytes*10/baud*1000};
+  var replyBytes=n*(11+10);
+  return {read:ms(14+n)+ms(replyBytes)+n*rdUs/1000, write:ms(14+n*5), reply:ms(replyBytes)+n*rdUs/1000, replyBytes:replyBytes};
+}
+function calc(){
+  var n=+$("c-n").value, baud=+$("c-baud").value, rd=+$("c-rd").value, as=+$("c-as").value;
+  var t=busTime(n,baud,rd), round=t.read+t.write, to=t.replyBytes*10/as*1000+34;
+  $("c-nv").textContent=n;
+  var o=$("c-out");o.style.whiteSpace="pre";
+  o.textContent="一次全读   "+t.read.toFixed(1)+" ms\n一次全写   "+t.write.toFixed(1)+" ms\n读 + 写    "+round.toFixed(1)+" ms   ≈ 每秒 "+(1000/round).toFixed(0)+" 轮\n\n应答实际要走  "+t.reply.toFixed(1)+" ms\nSDK 愿意等    "+to.toFixed(1)+" ms（按它以为的波特率算）";
+  if(t.reply>to)verdict($("c-ver"),"no","超时。应答还没传完，SDK 就放弃了。每次读到的都是旧数据。这就是没把 57600 写进 config 时发生的事。");
+  else if(to-t.reply<15)verdict($("c-ver"),"mid","能过，但只剩 "+(to-t.reply).toFixed(0)+" ms 余量。加上 USB 和电脑端的延迟，偶尔会超时。");
+  else verdict($("c-ver"),"ok","通过，余量 "+(to-t.reply).toFixed(0)+" ms。");
+}
+["c-n","c-baud","c-rd","c-as"].forEach(function(id){$(id).addEventListener("input",calc);$(id).addEventListener("change",calc)});
+calc();
+
+function arch(){
+  var baud=+$("a-baud").value, rt=function(n){var t=busTime(n,baud,20);return t.read+t.write};
+  var single=rt(17), groups=[3,3,3,3,3,2].map(rt);
+  var seq=groups.reduce(function(a,b){return a+b},0), par=Math.max.apply(null,groups);
+  var rows=[["现在：单总线 17 个",single,""],["六总线，轮流",seq,"alt"],["六总线，同时",par,""]];
+  var mx=Math.max(single,seq,par), h="";
+  rows.forEach(function(r){h+='<div>'+r[0]+'</div><div><div class="b '+r[2]+'" style="width:'+(r[1]/mx*100)+'%"></div></div><div class="v">'+r[1].toFixed(1)+' ms</div>'});
+  $("a-bars").innerHTML=h;
+  if(baud<100000)verdict($("a-ver"),"mid","轮流跑要 "+seq.toFixed(0)+" ms，比单总线的 "+single.toFixed(0)+" ms 还慢。同时跑才降到 "+par.toFixed(0)+" ms。");
+  else verdict($("a-ver"),"ok","1 Mbps 下单总线已经只要 "+single.toFixed(1)+" ms。如果目的只是提速，不需要分板；这时 USB 延迟成了主要部分。");
+}
+$("a-baud").addEventListener("change",arch);arch();
+
+/* ---------- 第 5 关：竞争单步 ---------- */
+var RC=[
+  {t:"起点：队列里有 2 个包。主循环刚发完一个，准备执行 s_q_count--",mem:2,reg:"-",real:2},
+  {t:"主循环 ①：把 s_q_count 读进寄存器",mem:2,reg:2,real:2},
+  {t:"定时器中断进来：bridge_submit() 放进一个新包，s_q_count++",mem:3,reg:2,real:3,isr:1},
+  {t:"中断返回。主循环 ②：寄存器减一（它不知道内存已经变了）",mem:3,reg:1,real:3},
+  {t:"主循环 ③：把寄存器写回内存。同时这个包已发完，真实包数减一",mem:1,reg:1,real:2}
+], rcI=0;
+function rcDraw(){
+  var h="";RC.forEach(function(s,i){h+='<div class="'+(s.isr?"isr ":"")+(i===rcI?"on":"")+'">'+s.t+'</div>'});
+  $("rc-steps").innerHTML=h;var s=RC[rcI];
+  $("rc-mem").textContent=s.mem;$("rc-reg").textContent=s.reg;$("rc-real").textContent=s.real;
+  if(rcI===RC.length-1)verdict($("rc-ver"),"no","计数器说还有 1 个，队列里其实有 2 个。从此每个包都晚一拍才被发出去：手执行的永远是上一个周期的指令。");
+  else verdict($("rc-ver"),"mid","第 "+rcI+" / "+(RC.length-1)+" 步。计数和真实包数目前"+(s.mem===s.real?"一致。":"不一致。"));
+}
+$("rc-next").addEventListener("click",function(){if(rcI<RC.length-1)rcI++;rcDraw()});
+$("rc-reset").addEventListener("click",function(){rcI=0;rcDraw()});
+rcDraw();
+
+/* ---------- 第 6 关：应答包解码（CRC 算法和 dxl.c 的 dxl_crc16 相同） ---------- */
+function crc16(a){var c=0;for(var i=0;i<a.length;i++){c^=a[i]<<8;for(var k=0;k<8;k++)c=(c&0x8000)?((c<<1)^0x8005)&0xFFFF:(c<<1)&0xFFFF}return c}
+function mk(id,err,params){var b=[0xFF,0xFF,0xFD,0x00,id,0,0,0x55,err].concat(params||[]);var len=b.length-7+2;b[5]=len&255;b[6]=len>>8;var c=crc16(b);b.push(c&255,c>>8);return b}
+function hex(a){return a.map(function(x){return (x<16?"0":"")+x.toString(16).toUpperCase()}).join(" ")}
+var ERR={1:"指令执行失败",2:"指令不认识",3:"舵机收到的包 CRC 错",4:"数值超出范围",5:"数据长度不对",6:"数值超出限制",7:"无权访问（比如扭矩开着时写 EEPROM）"};
+function decode(){
+  var raw=$("p-in").value.trim(), o=$("p-out"), v=$("p-ver");o.style.whiteSpace="pre";
+  var toks=raw.split(/[\s,]+/).filter(Boolean), b=toks.map(function(t){return parseInt(t,16)});
+  if(!toks.length||b.some(function(x){return isNaN(x)||x<0||x>255})||toks.some(function(t){return !/^[0-9a-fA-F]{1,2}$/.test(t)})){o.textContent="请输入用空格分开的十六进制字节，例如 FF FF FD 00 01 04 00 55 00 A1 0C";verdict(v,"mid","格式不对。");return}
+  if(b.length<11||b[0]!==0xFF||b[1]!==0xFF||b[2]!==0xFD||b[3]!==0){o.textContent="开头不是 FF FF FD 00，或长度不足 11 字节。";verdict(v,"no","这不是一个完整的应答包。");return}
+  var len=b[5]|(b[6]<<8);
+  if(b.length!==7+len){o.textContent="长度字段说后面有 "+len+" 字节，实际有 "+(b.length-7)+" 字节。";verdict(v,"no","长度对不上，包不完整或多了字节。");return}
+  var crcRx=b[b.length-2]|(b[b.length-1]<<8), crcOk=crc16(b.slice(0,-2))===crcRx, err=b[8], code=err&0x7F, alert=!!(err&0x80);
+  o.textContent="包头      FF FF FD 00\n舵机 ID   "+b[4]+"\n长度      "+len+"\n类型      "+(b[7]===0x55?"55（应答）":hex([b[7]])+"（不是应答）")+"\n错误字节  "+hex([err])+"   Alert 位 = "+(alert?1:0)+"   错误码 = "+code+(code?"（"+(ERR[code]||"未知")+"）":"")+"\n参数      "+(b.length>11?hex(b.slice(9,-2)):"无")+"\nCRC       "+hex(b.slice(-2))+"   "+(crcOk?"正确":"错误，应为 "+hex([crc16(b.slice(0,-2))&255,crc16(b.slice(0,-2))>>8]));
+  if(!crcOk)verdict(v,"no","CRC 不对。这个包里的任何内容都不能信，直接丢弃。");
+  else if(alert)verdict(v,"no","Alert 位是 1：舵机有硬件故障，要读地址 70。按 dxl.c 现在的写法，"+hex([err])+" & 0x7F = "+code+"，"+(code?"只会报指令错误，硬件故障仍然被漏掉。":"会被当成正常。"));
+  else if(code)verdict(v,"mid","通信成功，但舵机拒绝了这条指令："+(ERR[code]||"未知错误")+"。");
+  else verdict(v,"ok","一切正常。");
+}
+var PK={ok:function(){return mk(1,0)},alert:function(){return mk(1,0x80)},range:function(){return mk(1,4)},bad:function(){var p=mk(1,0);p[p.length-1]^=0x10;return p}};
+document.querySelectorAll("button[data-pkt]").forEach(function(btn){btn.addEventListener("click",function(){$("p-in").value=hex(PK[btn.dataset.pkt]());decode()})});
+$("p-in").addEventListener("input",decode);decode();
+
+refreshProgress();
+window.__course={crc16:crc16,busTime:busTime,mk:mk,hex:hex};
+})();
+</script>
+</body>
+</html>
