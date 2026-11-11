@@ -1,0 +1,2 @@
+# Keep the patch byte-exact: line-ending conversion would stop git apply.
+*.patch -text
