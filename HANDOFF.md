@@ -56,6 +56,7 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 - **2026-11-04 16:00 用户告知：KM1M7C 连接成功，用它控制手也成功。** 改动是用户在自己电脑上用另一个账号的 Claude 做的，本仓库里没有那些改动；用户说明天告诉改了什么。补到 `docs/换M7C_一页纸.md` 末尾的“实际改动”一节，相关文件也要同步（`make_config.py`、`Start-ORCA.bat`、固件说明等）。U2D2 基准（bus_timing）有没有做、Return Delay 的值、固件 TXEN 怎么切，都还不知道。
 - **2026-11-05 新任务：6 块 M7C 控制手。** 用户更正后的分法：**一根手指 3 个电机用一块 M7C**；拇指 4 个分 3 + 1，多出的 1 个和手腕合用一块，共 6 块。调研在 `docs/六块M7C方案调研.md`：推荐先做方案 A（6 个 COM，透传固件不改，ID 和标定不改，电脑端写 `MultiBusClient` 并行收发）。还没动手；等用户回答目的、M7C 怎么连电脑、拇指分哪个电机、11-04 实际改动。
 - **2026-11-10 用户想成长为资深嵌入式工程师**，要了一份以本仓库的坑为教材的课程：`docs/course/orca_pitfall_course.html`（`Start-Course.bat`）。用户做课程任务时可能会来问；任务清单在每关末尾。
+- **2026-11-11 多总线电脑端软件写好了（只在假电机上测过，没上机）。** 当前一步：**2 块 M7C 各控制一根手指**（食指 7/8/9、中指 6/17/2），最终 6 块。用户确认：舵机总线**已经是 1 Mbps**；两块板烧了同一份 1 Mbps 透传固件，插电脑是两个不同的 COM。用户选了**做法 A：直接改 orca_core**（不要 bat、不要启动脚本），对照 orca_core `48a38564`：新增 `orca_core/hardware/multibus_client.py`（`MultiBusClient`，N 个官方 `DynamixelClient` 合成一个）；`orca_core/hardware_hand.py` 加 3 处共 17 行（`_create_motor_client`、`_trial_probe`、`connect`，都用 `# --- multibus begin/end ---` 包着）；新增 `tests/test_multibus_client.py`（31 个测试）。用法：`config.yaml` 写 `port: multibus`，旁边放 `buses.yaml`（哪些 ID 归哪条总线，不写 COM 号，启动时按 ping 到的 ID 认 COM，对不上拒绝启动）。默认轮流，`parallel: true` 才开线程。文件和说明都在 `tools/orca/multibus/`（`改动说明.md` 先看；`multibus.patch` 可 `git apply`）。验证过：31 个新测试全过（含真 `OrcaHand` 类 + 6 条假总线标定和移动）；`tools/orca/bus_timing.py` 不改即可经多总线跑；补丁能打在干净的 `48a38564` 上。**没验证**：真实串口上的自动认 COM（M7C 的虚拟串口有没有 USB VID 不知道，没有的话在 `buses.yaml` 里写死 `port:`）、1 Mbps 实测一轮时间、和 11-04 那次本地改动是否冲突。**没做**：一条总线掉线时其余手指一起停的策略；`Start-ORCA.bat` 每次拉 orca_core 最新版，和这份补丁会冲突，用户现在用官方命令、不用这个 bat。用户是初学者，问过“补丁是什么”“文件在哪”，讲解要用大白话。下一步：用户在公司电脑上先 `git status` 看 orca_core 有没有本地改动，打补丁，跑 31 个测试，再按 `bus_timing.py` → `manual_control.py` 的顺序上机。
 - 以后：根据传感器数据更新指令包（设计在 `firmware/应用通信流程.md` 第 6 节，用 `bridge_submit()`）。
 
 ## 仓库里有什么
@@ -79,6 +80,8 @@ PC ──USB── KM1M7C（Nuvoton，3.3V IO）⇄ TXB0104（Adafruit 1875 模�
 | `docs/两个XC330.md` | **现在用这份**：两个 XC330（12V + PHB）的改 ID 两种方法、接法、T1–T11 测试包、风险 |
 | `docs/一根手指.md` | **当前任务**：3 个 XC330（ID 0/1/2）一根手指，时间型曲线、认方向、手势 HEX 包（张开/半握/握紧/钩/卷）、以后装实物的位置限制和电流控制 |
 | `Start-ORCA.bat`、`tools/orca/make_config.py` | 用 KM1M7C 跑 orca_core 的一键启动和配置生成 |
+| `tools/orca/multibus/` | **当前任务**：多块 M7C 的电脑端软件。`改动说明.md`（改了哪里、怎么在别的电脑上照做、报错对照）、`multibus.patch`（对 orca_core `48a38564`）、`multibus_client.py`、`test_multibus_client.py`、`buses.yaml`（两根手指版，6 块的 4 行已注释好） |
+| `docs/多总线PC软件设计.md` | 多总线的最初设计稿（三个方向的取舍、四类调用、掉线策略）；开头的更新框写了哪些已被 `改动说明.md` 取代 |
 | `docs/六块M7C方案调研.md` | **当前任务**：6 块 M7C / 6 条总线的分组、时间账、三个方向、硬件和软件改动、实施顺序 |
 | `docs/换M7C_一页纸.md` | U2D2 换 M7C（已完成）：U2D2 → M7C 的四步（基准、config、换线、K1–K8），官方命令版 |
 | `docs/下一步_预紧到换KM1M7C.md` | **当前**：预紧原理和操作、收敛判断、手势验收、U2D2 基准、换 KM1M7C 的坑和小步验收 |

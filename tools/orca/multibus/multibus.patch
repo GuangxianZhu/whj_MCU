@@ -1,0 +1,1287 @@
+diff --git a/orca_core/hardware/multibus_client.py b/orca_core/hardware/multibus_client.py
+new file mode 100644
+index 0000000..fdf9bad
+--- /dev/null
++++ b/orca_core/hardware/multibus_client.py
+@@ -0,0 +1,830 @@
++# ==============================================================================
++# Local addition (not part of upstream orca_core).
++#
++# Several motor buses presented to OrcaHand as one MotorClient.
++#
++# One bridge board (for example one KM1M7C) drives one finger and shows up on
++# the PC as one COM port. OrcaHand only knows how to talk to a single motor
++# client, so this file puts a "switchboard" in between: it looks up which bus
++# a motor ID lives on, sends each bus its share of the request, and puts the
++# answers back together in the order OrcaHand expects.
++#
++# Switched on by writing ``port: multibus`` in config.yaml. The routing table
++# is ``buses.yaml`` in the same folder as that config.yaml.
++#
++# All messages in this file are plain ASCII on purpose: a Windows console in
++# a non-UTF-8 code page cannot print anything else.
++# ==============================================================================
++"""Several motor buses presented as one :class:`MotorClient`."""
++from __future__ import annotations
++
++import logging
++import os
++import time
++from concurrent.futures import ThreadPoolExecutor
++from dataclasses import dataclass
++from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
++
++import numpy as np
++import yaml
++
++from ..constants import MOTOR_PORT_CLOSE_SETTLE_S
++from .motor_client import MotionTimeoutError, MotorClient, MotorRead
++
++logger = logging.getLogger(__name__)
++
++MULTIBUS_PORT = "multibus"
++"""The value of ``port:`` in config.yaml that switches this client on."""
++
++BUSES_FILE = "buses.yaml"
++"""Routing table, looked up beside config.yaml."""
++
++
++class MultiBusConfigError(ValueError):
++    """buses.yaml is missing, malformed, or contradicts what is plugged in."""
++
++
++def is_multibus_port(port: Any) -> bool:
++    """True when ``port`` is the ``multibus`` keyword rather than a real port."""
++    return isinstance(port, str) and port.strip().lower() == MULTIBUS_PORT
++
++
++# ------------------------------------------------------------------------------
++# buses.yaml
++# ------------------------------------------------------------------------------
++
++@dataclass(frozen=True)
++class BusSpec:
++    """One bus: a name, the motor IDs wired to it, and optionally its port."""
++    name: str
++    motor_ids: Tuple[int, ...]
++    port: Optional[str] = None
++
++
++@dataclass(frozen=True)
++class MultiBusSpec:
++    """Everything buses.yaml says."""
++    buses: Tuple[BusSpec, ...]
++    baudrate: Optional[int] = None
++    motor_type: Optional[str] = None
++    parallel: bool = False
++    path: str = ""
++
++    @property
++    def routed_ids(self) -> List[int]:
++        return [mid for bus in self.buses for mid in bus.motor_ids]
++
++
++def buses_path_for(config_path: str) -> str:
++    """Where buses.yaml is expected for the hand configured at ``config_path``."""
++    return os.path.join(os.path.dirname(os.path.abspath(config_path)), BUSES_FILE)
++
++
++def load_buses(path: str) -> MultiBusSpec:
++    """Read and check buses.yaml.
++
++    Accepted shapes for one bus::
++
++        index: [7, 8, 9]                       # port found automatically
++        index: {ids: [7, 8, 9], port: COM5}    # port written down
++    """
++    if not os.path.isfile(path):
++        raise MultiBusConfigError(
++            f"port is '{MULTIBUS_PORT}' but the routing table was not found: "
++            f"{path}. Create it next to config.yaml.")
++    # utf-8-sig: explicit so a non-UTF-8 Windows locale cannot misread the
++    # file, and tolerant of the BOM Notepad may add.
++    with open(path, "r", encoding="utf-8-sig") as handle:
++        raw = yaml.safe_load(handle) or {}
++    if not isinstance(raw, dict):
++        raise MultiBusConfigError(f"{path}: the file must be a mapping.")
++
++    raw_buses = raw.get("buses")
++    if not isinstance(raw_buses, dict) or not raw_buses:
++        raise MultiBusConfigError(
++            f"{path}: needs a 'buses:' section with at least one bus.")
++
++    buses: List[BusSpec] = []
++    owner: Dict[int, str] = {}
++    ports: Dict[str, str] = {}
++    for name, entry in raw_buses.items():
++        name = str(name)
++        port = None
++        ids = entry
++        if isinstance(entry, dict):
++            ids = entry.get("ids")
++            port = entry.get("port")
++            if port is not None:
++                port = str(port).strip() or None
++        if not isinstance(ids, (list, tuple)) or not ids:
++            raise MultiBusConfigError(
++                f"{path}: bus '{name}' needs a list of motor IDs, e.g. [7, 8, 9].")
++        try:
++            ids = tuple(int(mid) for mid in ids)
++        except (TypeError, ValueError):
++            raise MultiBusConfigError(
++                f"{path}: bus '{name}' has a motor ID that is not a number.") from None
++        if len(set(ids)) != len(ids):
++            raise MultiBusConfigError(
++                f"{path}: bus '{name}' lists the same motor ID twice.")
++        for mid in ids:
++            if mid in owner:
++                raise MultiBusConfigError(
++                    f"{path}: motor ID {mid} is listed on both '{owner[mid]}' "
++                    f"and '{name}'. One motor can only be on one bus.")
++            owner[mid] = name
++        if port is not None:
++            key = port.upper()
++            if key in ports:
++                raise MultiBusConfigError(
++                    f"{path}: port {port} is given to both '{ports[key]}' "
++                    f"and '{name}'.")
++            ports[key] = name
++        buses.append(BusSpec(name=name, motor_ids=ids, port=port))
++
++    baudrate = raw.get("baudrate")
++    if baudrate is not None:
++        try:
++            baudrate = int(baudrate)
++        except (TypeError, ValueError):
++            raise MultiBusConfigError(f"{path}: 'baudrate' must be a number.") from None
++    motor_type = raw.get("motor_type")
++    return MultiBusSpec(
++        buses=tuple(buses),
++        baudrate=baudrate,
++        motor_type=str(motor_type) if motor_type else None,
++        parallel=bool(raw.get("parallel", False)),
++        path=path,
++    )
++
++
++# ------------------------------------------------------------------------------
++# Finding which COM port is which bus
++# ------------------------------------------------------------------------------
++
++def _candidate_ports() -> List[str]:
++    """USB serial ports worth probing.
++
++    Ports without a USB vendor ID (Bluetooth serial links, legacy COM1) are
++    left out: they are never a bridge board and opening them can block for
++    seconds.
++    """
++    import serial.tools.list_ports
++
++    return [p.device for p in serial.tools.list_ports.comports()
++            if p.vid is not None]
++
++
++def _ping_ids(port: str, baudrate: int, motor_ids: Sequence[int]) -> List[int]:
++    """Motor IDs out of ``motor_ids`` that answer a ping on ``port``.
++
++    Dynamixel Protocol 2.0 only. Never enables torque or writes anything.
++    A port that cannot be opened (in use, unplugged) answers nothing.
++    """
++    import dynamixel_sdk
++
++    handler = dynamixel_sdk.PortHandler(port)
++    found: List[int] = []
++    try:
++        if not handler.openPort() or not handler.setBaudRate(baudrate):
++            return []
++        packet = dynamixel_sdk.PacketHandler(2.0)
++        for motor_id in motor_ids:
++            _, comm, _ = packet.ping(handler, int(motor_id))
++            if comm == dynamixel_sdk.COMM_SUCCESS:
++                found.append(int(motor_id))
++    except Exception as exc:  # serial.SerialException and friends
++        logger.debug("multibus: could not probe %s: %s", port, exc)
++        return []
++    finally:
++        try:
++            handler.closePort()
++        except Exception:
++            pass
++        # The same pause the hand takes after closing a port: the bus client
++        # reopens this port right after, and a USB serial port needs a moment.
++        time.sleep(MOTOR_PORT_CLOSE_SETTLE_S)
++    return found
++
++
++def resolve_bus_ports(
++    spec: MultiBusSpec,
++    baudrate: int,
++    ping: Optional[Callable[[str, int, Sequence[int]], List[int]]] = None,
++    candidates: Optional[Callable[[], List[str]]] = None,
++) -> Dict[str, str]:
++    """Work out the port of every bus in ``spec``; returns ``{bus name: port}``.
++
++    A bus with ``port:`` written in buses.yaml keeps it. Every other bus is
++    found by pinging: each USB serial port is asked which of the still
++    unplaced motor IDs it carries, and the answer names the bus. COM numbers
++    move when a cable changes socket, motor IDs do not, so the IDs decide.
++
++    Refuses (raises) rather than guesses when what is plugged in does not
++    match the table: a port carrying motors of two buses, two ports claiming
++    one bus, or a bus that no port answers for.
++    """
++    ports: Dict[str, str] = {b.name: b.port for b in spec.buses if b.port}
++    pending = [b for b in spec.buses if not b.port]
++    if not pending:
++        return ports
++
++    ping = ping or _ping_ids
++    taken = {p.upper() for p in ports.values()}
++    listed = (candidates or _candidate_ports)()
++    to_probe = [p for p in listed if p.upper() not in taken]
++    wanted = [mid for bus in pending for mid in bus.motor_ids]
++    owner = {mid: bus.name for bus in pending for mid in bus.motor_ids}
++
++    seen: Dict[str, List[int]] = {}
++    for port in to_probe:
++        answered = ping(port, baudrate, wanted)
++        seen[port] = answered
++        if not answered:
++            continue
++        names = sorted({owner[mid] for mid in answered})
++        if len(names) > 1:
++            raise MultiBusConfigError(
++                f"{port} answers for motor IDs {answered}, which {spec.path} "
++                f"splits over buses {names}. Check the wiring or the table.")
++        name = names[0]
++        if name in ports:
++            raise MultiBusConfigError(
++                f"bus '{name}' answers on both {ports[name]} and {port}. "
++                f"Two boards are wired to the same finger, or the table is wrong.")
++        ports[name] = port
++        logger.info("multibus: bus '%s' is on %s (motor IDs %s answered)",
++                    name, port, answered)
++
++    missing = [b for b in pending if b.name not in ports]
++    if missing:
++        detail = "; ".join(
++            f"'{b.name}' (motor IDs {list(b.motor_ids)})" for b in missing)
++        probed = ", ".join(
++            f"{p}: {seen[p] or 'no answer'}" for p in to_probe) or "none found"
++        raise MultiBusConfigError(
++            f"no port answered for bus {detail} at {baudrate} baud. "
++            f"Ports probed -> {probed}. Check power, the USB cable, that no "
++            f"other program has the port open, and 'baudrate' in {spec.path}; "
++            f"or write the port into {spec.path}.")
++    return ports
++
++
++# ------------------------------------------------------------------------------
++# The combined client
++# ------------------------------------------------------------------------------
++
++class _Bus:
++    """One live bus: its name, port and the single-bus client driving it."""
++
++    def __init__(self, name: str, port: str, client: MotorClient):
++        self.name = name
++        self.port = port
++        self.client = client
++        self.motor_ids = [int(m) for m in client.motor_ids]
++
++
++class MultiBusClient(MotorClient):
++    """N single-bus clients behind the interface of one.
++
++    Never instantiated directly: :func:`multibus_class_for` builds a subclass
++    that also inherits from the single-bus client class of the motor family,
++    so every family constant (current scales, supported modes, error bits...)
++    is the family's own. Every method that touches the bus is defined here and
++    routed; one inherited from the single-bus client would look for a serial
++    port this object does not have and fail loudly (see ``__getattr__``).
++
++    Call types and what happens to them:
++
++    * read everything     -> every bus is read, answers are put back in the
++                             order of ``motor_ids``
++    * write to listed IDs -> the list is split per bus
++    * one motor           -> sent to the bus that motor is on
++    * whole-client state  -> all buses; "ok" means every bus is ok
++
++    Motor IDs that no bus carries behave like motors that are not plugged in.
++    """
++
++    def __init__(
++        self,
++        motor_ids: Sequence[int],
++        spec: MultiBusSpec,
++        baudrate: int,
++        client_factory: Callable[[Sequence[int], str, int], MotorClient],
++        port_resolver: Optional[Callable[[MultiBusSpec, int], Dict[str, str]]] = None,
++    ):
++        """
++        Args:
++            motor_ids: Every motor ID of the hand, in config.yaml order.
++                Reads come back in this order.
++            spec: The parsed buses.yaml.
++            baudrate: Baud rate shared by all buses.
++            client_factory: ``(motor_ids, port, baudrate) -> MotorClient`` for
++                one bus. Not connected yet.
++            port_resolver: ``(spec, baudrate) -> {bus name: port}``; defaults
++                to :func:`resolve_bus_ports`.
++        """
++        self.motor_ids = [int(m) for m in motor_ids]
++        self.baudrate = int(baudrate)
++        self.port_name = MULTIBUS_PORT
++        self._spec = spec
++        self._client_factory = client_factory
++        self._port_resolver = port_resolver or resolve_bus_ports
++        self._parallel = bool(spec.parallel)
++        self._buses: List[_Bus] = []
++        self._bus_of: Dict[int, _Bus] = {}
++        self._index = {mid: i for i, mid in enumerate(self.motor_ids)}
++        self._executor: Optional[ThreadPoolExecutor] = None
++        self._last_read_ok = True
++        size = len(self.motor_ids)
++        self._pos = np.zeros(size, dtype=np.float32)
++        self._vel = np.zeros(size, dtype=np.float32)
++        self._cur = np.zeros(size, dtype=np.float32)
++        self._temp = np.zeros(size, dtype=np.float32)
++
++        unknown = [m for m in spec.routed_ids if m not in self._index]
++        if unknown:
++            raise MultiBusConfigError(
++                f"{spec.path}: motor IDs {unknown} are not in config.yaml "
++                f"motor_ids {self.motor_ids}.")
++        unrouted = [m for m in self.motor_ids if m not in set(spec.routed_ids)]
++        if unrouted:
++            logger.warning(
++                "multibus: motor IDs %s are on no bus in %s; they are treated "
++                "as not plugged in", unrouted, spec.path)
++
++    def __getattr__(self, name: str):
++        # Reached only when normal lookup fails, i.e. something asked for
++        # state a single-bus client keeps (port_handler, _bus_lock, ...).
++        raise AttributeError(
++            f"{type(self).__name__} has no '{name}': it combines several buses "
++            f"and has no serial port of its own. A method that needs '{name}' "
++            f"is not routed in multibus_client.py.")
++
++    # ----- helpers ---------------------------------------------------------
++
++    def _each(self, fn: Callable[[_Bus], Any],
++              buses: Optional[Sequence[_Bus]] = None) -> List[Any]:
++        """Run ``fn`` on every bus (or on ``buses``); results in bus order.
++
++        One after another by default. With ``parallel: true`` each bus runs in
++        its own thread, so the time is that of the slowest bus instead of the
++        sum. Every bus is always attempted; the first error is raised after.
++        """
++        buses = list(self._buses if buses is None else buses)
++        results: List[Any] = [None] * len(buses)
++        errors: List[BaseException] = []
++        if self._parallel and len(buses) > 1 and self._executor is not None:
++            futures = [self._executor.submit(fn, bus) for bus in buses]
++            for i, future in enumerate(futures):
++                try:
++                    results[i] = future.result()
++                except Exception as exc:
++                    errors.append(exc)
++        else:
++            for i, bus in enumerate(buses):
++                try:
++                    results[i] = fn(bus)
++                except Exception as exc:
++                    errors.append(exc)
++        if errors:
++            raise errors[0]
++        return results
++
++    def _split(self, motor_ids: Sequence[int],
++               values: Optional[Sequence[Any]] = None
++               ) -> List[Tuple[_Bus, List[int], Optional[List[Any]]]]:
++        """Group ``motor_ids`` (and matching ``values``) by bus, order kept.
++
++        IDs that are on no bus are dropped, the way a single-bus client skips
++        motors that never answered.
++        """
++        if values is not None and len(values) != len(motor_ids):
++            raise ValueError("motor_ids and values must have the same length")
++        groups: Dict[int, Tuple[_Bus, List[int], List[Any]]] = {}
++        for i, motor_id in enumerate(motor_ids):
++            bus = self._bus_of.get(int(motor_id))
++            if bus is None:
++                continue
++            group = groups.setdefault(id(bus), (bus, [], []))
++            group[1].append(int(motor_id))
++            if values is not None:
++                group[2].append(values[i])
++        return [(bus, ids, vals if values is not None else None)
++                for bus, ids, vals in groups.values()]
++
++    def _fan_ids(self, motor_ids: Sequence[int],
++                 fn: Callable[[MotorClient, List[int]], Any]) -> List[Any]:
++        """Call ``fn(client, ids_on_that_bus)`` per bus; results in bus order."""
++        parts = {id(bus): ids for bus, ids, _ in self._split(motor_ids)}
++        buses = [bus for bus in self._buses if id(bus) in parts]
++        return self._each(lambda bus: fn(bus.client, parts[id(bus)]), buses)
++
++    def _fan_values(self, motor_ids: Sequence[int], values: Sequence[Any],
++                    fn: Callable[[MotorClient, List[int], np.ndarray], Any]) -> List[Any]:
++        """Like :meth:`_fan_ids`, with each bus's share of ``values``."""
++        parts = {id(bus): (ids, np.asarray(vals))
++                 for bus, ids, vals in self._split(motor_ids, values)}
++        buses = [bus for bus in self._buses if id(bus) in parts]
++        return self._each(lambda bus: fn(bus.client, *parts[id(bus)]), buses)
++
++    def _merge_dicts(self, parts: Sequence[Optional[dict]]) -> dict:
++        merged: dict = {}
++        for part in parts:
++            merged.update(part or {})
++        return merged
++
++    def _client_of(self, motor_id: int) -> Optional[MotorClient]:
++        bus = self._bus_of.get(int(motor_id))
++        return bus.client if bus is not None else None
++
++    # ----- lifecycle -------------------------------------------------------
++
++    @property
++    def is_connected(self) -> bool:
++        # "Any", not "all": after one bus drops, the hand must still see a
++        # live client so that disconnect() runs and closes the others.
++        return any(bus.client.is_connected for bus in self._buses)
++
++    def connect(self) -> None:
++        """Find every bus's port, then open them all. All or nothing."""
++        if self.is_connected:
++            raise RuntimeError("Client is already connected.")
++        ports = self._port_resolver(self._spec, self.baudrate)
++        buses: List[_Bus] = []
++        try:
++            for spec in self._spec.buses:
++                port = ports[spec.name]
++                client = self._client_factory(list(spec.motor_ids), port, self.baudrate)
++                bus = _Bus(spec.name, port, client)
++                buses.append(bus)
++                try:
++                    client.connect()
++                except Exception as exc:
++                    raise ConnectionError(
++                        f"bus '{spec.name}' on {port}: {exc}") from exc
++                answered = list(client.responding_motor_ids())
++                if not answered:
++                    raise ConnectionError(
++                        f"bus '{spec.name}' on {port}: none of motor IDs "
++                        f"{list(spec.motor_ids)} answered at {self.baudrate} baud "
++                        f"(check power, wiring and the baud rate)")
++                missing = [m for m in spec.motor_ids if m not in answered]
++                if missing:
++                    logger.warning(
++                        "multibus: bus '%s' on %s: motor IDs %s did not answer",
++                        spec.name, port, missing)
++        except Exception:
++            for bus in buses:
++                try:
++                    bus.client.disconnect()
++                except Exception:
++                    pass
++            raise
++        self._buses = buses
++        self._bus_of = {mid: bus for bus in buses for mid in bus.motor_ids}
++        self.port_name = "{}({})".format(
++            MULTIBUS_PORT, ", ".join(f"{b.name}={b.port}" for b in buses))
++        if self._parallel and len(buses) > 1:
++            self._executor = ThreadPoolExecutor(
++                max_workers=len(buses), thread_name_prefix="multibus")
++        # Printed, not logged: most scripts never raise the log level, and
++        # which port became which finger is the first thing to check.
++        print("multibus: " + ", ".join(
++            f"{b.name}={b.port} {list(b.client.responding_motor_ids())}"
++            for b in buses) + (" (parallel)" if self._executor else ""))
++
++    def _close(self, how: str) -> None:
++        buses = [bus for bus in self.__dict__.get("_buses", [])]
++        error: Optional[BaseException] = None
++        for bus in buses:
++            try:
++                closer = getattr(bus.client, how, None) or bus.client.disconnect
++                closer()
++            except Exception as exc:  # keep closing the others
++                error = error or exc
++        executor = self.__dict__.get("_executor")
++        if executor is not None:
++            executor.shutdown(wait=False)
++            self._executor = None
++        if error is not None:
++            raise error
++
++    def disconnect(self) -> None:
++        """Torque off and close every bus; a failing bus does not stop the rest."""
++        self._close("disconnect")
++
++    def disconnect_fixed_lock_order(self) -> None:
++        self._close("disconnect_fixed_lock_order")
++
++    # ----- which motors are there -----------------------------------------
++
++    def responding_motor_ids(self) -> List[int]:
++        answered = set()
++        for bus in self._buses:
++            answered.update(int(m) for m in bus.client.responding_motor_ids())
++        return [m for m in self.motor_ids if m in answered]
++
++    def absent_motor_ids(self) -> List[int]:
++        answered = set(self.responding_motor_ids())
++        return [m for m in self.motor_ids if m not in answered]
++
++    def motors_unable_to_move(self) -> "set[int]":
++        unable: set = set()
++        for bus in self._buses:
++            unable |= set(bus.client.motors_unable_to_move())
++        return unable
++
++    def take_hardware_alerts(self) -> "dict[int, int]":
++        return self._merge_dicts([bus.client.take_hardware_alerts()
++                                  for bus in self._buses])
++
++    def transport_baud_rates(self) -> "tuple[int, ...] | None":
++        common: Optional[set] = None
++        for bus in self._buses:
++            rates = bus.client.transport_baud_rates()
++            if rates is None:
++                continue
++            common = set(rates) if common is None else common & set(rates)
++        return None if common is None else tuple(sorted(common, reverse=True))
++
++    # ----- reads of every motor -------------------------------------------
++
++    def _scatter(self, target: np.ndarray, bus: _Bus, values: Sequence[float]) -> None:
++        for motor_id, value in zip(bus.motor_ids, values):
++            target[self._index[motor_id]] = value
++
++    def read_position_velocity_current(self) -> MotorRead:
++        def read(bus: _Bus):
++            # The freshness flag describes the read just made on that bus, so
++            # it is taken in the same step, before anything else can read.
++            return bus.client.read_position_velocity_current(), bool(bus.client.last_read_ok)
++
++        ok = bool(self._buses)
++        try:
++            results = self._each(read)
++        except Exception:
++            self._last_read_ok = False
++            raise
++        for bus, (snapshot, fresh) in zip(self._buses, results):
++            ok = ok and fresh
++            self._scatter(self._pos, bus, snapshot.position)
++            self._scatter(self._vel, bus, snapshot.velocity)
++            self._scatter(self._cur, bus, snapshot.current)
++        self._last_read_ok = ok
++        return MotorRead(position=self._pos.copy(), velocity=self._vel.copy(),
++                         current=self._cur.copy())
++
++    @property
++    def last_read_ok(self) -> bool:
++        """False as soon as one bus failed its share of the last full read."""
++        return self._last_read_ok
++
++    def read_temperature(self) -> np.ndarray:
++        results = self._each(lambda bus: bus.client.read_temperature())
++        for bus, values in zip(self._buses, results):
++            self._scatter(self._temp, bus, values)
++        return self._temp.copy()
++
++    def read_current_limits(self) -> "dict[int, float | None]":
++        merged = self._merge_dicts(
++            self._each(lambda bus: bus.client.read_current_limits()))
++        return {m: merged.get(m) for m in self.motor_ids}
++
++    def read_temperature_limits(self) -> "dict[int, float | None]":
++        return self._merge_dicts(
++            self._each(lambda bus: bus.client.read_temperature_limits()))
++
++    def read_stop_mask(self) -> "dict[int, int | None]":
++        return self._merge_dicts(
++            self._each(lambda bus: bus.client.read_stop_mask()))
++
++    # ----- reads and writes of listed motors ------------------------------
++
++    def set_torque_enabled(self, motor_ids: Sequence[int], enabled: bool,
++                           *args, **kwargs) -> List[int]:
++        failed: List[int] = []
++        for part in self._fan_ids(
++                motor_ids,
++                lambda c, ids: c.set_torque_enabled(ids, enabled, *args, **kwargs)):
++            failed.extend(part or [])
++        return failed
++
++    def set_operating_mode(self, motor_ids: Sequence[int], mode: int) -> None:
++        self._fan_ids(motor_ids, lambda c, ids: c.set_operating_mode(ids, mode))
++
++    def write_pwm_fraction(self, motor_ids: Sequence[int], fraction: float) -> None:
++        self._fan_ids(motor_ids, lambda c, ids: c.write_pwm_fraction(ids, fraction))
++
++    def write_desired_pos(self, motor_ids: Sequence[int], positions: np.ndarray) -> None:
++        assert len(motor_ids) == len(positions)
++        self._fan_values(motor_ids, positions,
++                         lambda c, ids, vals: c.write_desired_pos(ids, vals))
++
++    def write_desired_current(self, motor_ids: Sequence[int], current: np.ndarray) -> None:
++        if len(motor_ids) != len(current):
++            raise ValueError("motor_ids and currents must have the same length")
++        self._fan_values(motor_ids, current,
++                         lambda c, ids, vals: c.write_desired_current(ids, vals))
++
++    def read_goal_currents(
++        self, motor_ids: "Sequence[int] | None" = None
++    ) -> "dict[int, float | None]":
++        requested = list(self.motor_ids if motor_ids is None else motor_ids)
++        merged = self._merge_dicts(
++            self._fan_ids(requested, lambda c, ids: c.read_goal_currents(ids)))
++        return {int(m): merged.get(int(m)) for m in requested}
++
++    def read_hardware_errors(self, motor_ids: Sequence[int]) -> "dict[int, int | None]":
++        merged = self._merge_dicts(
++            self._fan_ids(motor_ids, lambda c, ids: c.read_hardware_errors(ids)))
++        return {int(m): merged.get(int(m)) for m in motor_ids}
++
++    def read_servo_gains(self, motor_ids: Sequence[int]) -> dict:
++        merged = self._merge_dicts(
++            self._fan_ids(motor_ids, lambda c, ids: c.read_servo_gains(ids)))
++        return {int(m): merged.get(int(m)) for m in motor_ids}
++
++    def read_servo_profile(self, motor_ids: Sequence[int]) -> dict:
++        merged = self._merge_dicts(
++            self._fan_ids(motor_ids, lambda c, ids: c.read_servo_profile(ids)))
++        return {int(m): merged.get(int(m)) for m in motor_ids}
++
++    def read_profile_limits(self, motor_ids: Sequence[int]) -> dict:
++        merged = self._merge_dicts(
++            self._fan_ids(motor_ids, lambda c, ids: c.read_profile_limits(ids)))
++        unrouted = [int(m) for m in motor_ids if int(m) not in merged]
++        if unrouted:
++            # No bus to ask: fall back to the family's datasheet figures.
++            merged.update(MotorClient.read_profile_limits(self, unrouted))
++        return {int(m): merged[int(m)] for m in motor_ids}
++
++    def write_servo_gains(self, gains: dict) -> None:
++        ids = list(gains)
++        self._fan_ids(ids, lambda c, part: c.write_servo_gains(
++            {m: gains[m] for m in part}))
++
++    def write_servo_profile(self, profiles: dict) -> None:
++        ids = list(profiles)
++        self._fan_ids(ids, lambda c, part: c.write_servo_profile(
++            {m: profiles[m] for m in part}))
++
++    def check_overload_and_reboot(self, motor_ids: Sequence[int]) -> list:
++        rebooted: list = []
++        for part in self._fan_ids(
++                motor_ids, lambda c, ids: c.check_overload_and_reboot(ids)):
++            rebooted.extend(part or [])
++        return rebooted
++
++    def write_byte(self, motor_ids: Sequence[int], value: int, address: int) -> List[int]:
++        failed: List[int] = []
++        for part in self._fan_ids(
++                motor_ids, lambda c, ids: c.write_byte(ids, value, address)):
++            failed.extend(part or [])
++        return failed
++
++    def sync_write(self, motor_ids: Sequence[int], values, address: int, size: int) -> None:
++        self._fan_values(motor_ids, values,
++                         lambda c, ids, vals: c.sync_write(ids, vals, address, size))
++
++    def wait_for_motion_complete(self, timeout: float = 5.0, **kwargs) -> None:
++        """Wait until the motors on every bus have settled, or raise.
++
++        ``timeout`` is for the whole hand: buses waited on one after another
++        share one deadline.
++        """
++        self.check_connected()
++        deadline = time.time() + timeout
++        problems: List[str] = []
++
++        def wait(bus: _Bus) -> None:
++            remaining = timeout if self._executor else max(deadline - time.time(), 0.0)
++            try:
++                bus.client.wait_for_motion_complete(timeout=remaining, **kwargs)
++            except MotionTimeoutError as exc:
++                problems.append(f"bus '{bus.name}': {exc}")
++
++        self._each(wait)
++        if problems:
++            raise MotionTimeoutError("; ".join(problems))
++
++    # ----- one motor -------------------------------------------------------
++
++    def read_hardware_error(self, motor_id: int) -> "int | None":
++        client = self._client_of(motor_id)
++        return None if client is None else client.read_hardware_error(motor_id)
++
++    def _current_ceiling_ma(self, motor_id: int) -> "float | None":
++        client = self._client_of(motor_id)
++        return None if client is None else client._current_ceiling_ma(motor_id)
++
++    def hold_motor_off(self, motor_id: int) -> bool:
++        client = self._client_of(motor_id)
++        return False if client is None else client.hold_motor_off(motor_id)
++
++    def release_motor(self, motor_id: int) -> bool:
++        client = self._client_of(motor_id)
++        return False if client is None else client.release_motor(motor_id)
++
++    def reboot_motor(self, motor_id: int) -> None:
++        client = self._client_of(motor_id)
++        if client is None:
++            raise ValueError(f"motor ID {motor_id} is on no bus; cannot reboot it")
++        client.reboot_motor(motor_id)
++
++    def read_config_register(self, motor_id: int, key: str) -> "int | None":
++        client = self._client_of(motor_id)
++        return None if client is None else client.read_config_register(motor_id, key)
++
++    def write_config_register(self, motor_id: int, key: str, value: int) -> "int | None":
++        client = self._client_of(motor_id)
++        return None if client is None else client.write_config_register(motor_id, key, value)
++
++    @property
++    def requires_offset_calibration(self) -> bool:
++        return any(bus.client.requires_offset_calibration for bus in self._buses)
++
++    def calibrate_offset(self, motor_id: int, upper: bool = True) -> bool:
++        client = self._client_of(motor_id)
++        return False if client is None else client.calibrate_offset(motor_id, upper)
++
++    # ----- not available on the combined client ---------------------------
++
++    def _single_bus_only(self, what: str):
++        raise NotImplementedError(
++            f"{what} works on one bus at a time. Put that bus's real port in "
++            f"config.yaml (instead of '{MULTIBUS_PORT}') to do it.")
++
++    def scan_for_motors(self, port: str, id_range: tuple, baud_rates=None) -> list:
++        self._single_bus_only("Scanning for motors")
++
++    def change_motor_id(self, current_id: int, new_id: int) -> bool:
++        self._single_bus_only("Changing a motor ID")
++
++    def change_motor_baudrate(self, motor_id: int, new_baud_rate: int) -> bool:
++        self._single_bus_only("Changing a motor baud rate")
++
++    def change_return_delay_time(self, motor_id: int, delay_us: int) -> bool:
++        self._single_bus_only("Changing the return delay time")
++
++
++# ------------------------------------------------------------------------------
++# Glue used by hardware_hand.py
++# ------------------------------------------------------------------------------
++
++_CLASS_CACHE: Dict[type, type] = {}
++
++
++def multibus_class_for(bus_client_cls: type) -> type:
++    """The combined-client class for buses driven by ``bus_client_cls``.
++
++    Inherits from both, :class:`MultiBusClient` first: routed methods come
++    from it, family constants and classmethods from ``bus_client_cls``.
++    """
++    cls = _CLASS_CACHE.get(bus_client_cls)
++    if cls is None:
++        cls = type(f"MultiBus{bus_client_cls.__name__}",
++                   (MultiBusClient, bus_client_cls), {})
++        _CLASS_CACHE[bus_client_cls] = cls
++    return cls
++
++
++def _spec_for(config) -> MultiBusSpec:
++    return load_buses(buses_path_for(config.config_path))
++
++
++def resolve_multibus_driver(config, default_motor_type: str = "dynamixel"
++                            ) -> "tuple[str, int]":
++    """``(motor_type, baudrate)`` for a multibus hand, without touching a port.
++
++    Stands in for the stock connect-time probe, which pings only the first
++    and last motor ID of the hand on one port: a finger bus carrying neither
++    would be reported as "no motor responded".
++
++    buses.yaml wins over config.yaml for both values.
++    """
++    spec = _spec_for(config)
++    motor_type = spec.motor_type or config.motor_type or default_motor_type
++    baudrate = spec.baudrate or config.baudrate
++    if not baudrate:
++        raise MultiBusConfigError(
++            f"no baud rate for the multibus hand: add 'baudrate: 1000000' "
++            f"(or the rate your boards use) to {spec.path}.")
++    return motor_type, int(baudrate)
++
++
++def create_multibus_client(config, client_factory=None) -> MultiBusClient:
++    """Build (but do not connect) the combined client for ``config``.
++
++    ``config.motor_type`` and ``config.baudrate`` are expected to be resolved
++    already, which :func:`resolve_multibus_driver` does during connect.
++    """
++    from .motor_factory import motor_client_class
++
++    spec = _spec_for(config)
++    motor_type, baudrate = resolve_multibus_driver(config)
++    bus_cls = motor_client_class(motor_type)
++    if client_factory is None:
++        client_factory = bus_cls
++    return multibus_class_for(bus_cls)(
++        config.motor_ids, spec, baudrate, client_factory)
+diff --git a/orca_core/hardware_hand.py b/orca_core/hardware_hand.py
+index 41f135b..4c385ed 100644
+--- a/orca_core/hardware_hand.py
++++ b/orca_core/hardware_hand.py
+@@ -286,6 +286,11 @@ class OrcaHand(BaseHand):
+         return self._motor_client.last_read_ok
+ 
+     def _create_motor_client(self) -> MotorClient:
++        # --- multibus begin (local addition) ---
++        from .hardware.multibus_client import create_multibus_client, is_multibus_port
++        if is_multibus_port(self.config.port):
++            return create_multibus_client(self.config)
++        # --- multibus end ---
+         return create_motor_client(
+             self.config.motor_type,
+             self.config.motor_ids,
+@@ -295,6 +300,11 @@ class OrcaHand(BaseHand):
+ 
+     def _trial_probe(self, port: str) -> "tuple[str | None, int | None]":
+         """Probe ``port`` for a responding (motor_type, baudrate) combination."""
++        # --- multibus begin (local addition) ---
++        from .hardware.multibus_client import is_multibus_port, resolve_multibus_driver
++        if is_multibus_port(port):
++            return resolve_multibus_driver(self.config)
++        # --- multibus end ---
+         return trial_probe(self.config, port)
+ 
+     def _resolve_motor_driver(self, port: str) -> bool:
+@@ -427,6 +437,13 @@ class OrcaHand(BaseHand):
+                 f"Connection successful ({self.config.motor_type} @ "
+                 f"{self.config.port}, {self.config.baudrate} baud)"
+             )
++        # --- multibus begin (local addition) ---
++        from .hardware.multibus_client import is_multibus_port
++        if is_multibus_port(first_port):
++            # Falling back to a single port would bring up one finger and
++            # call it the hand; report the real problem instead.
++            return False, f"Multibus connection failed: {error}"
++        # --- multibus end ---
+         if isinstance(error, HandConfigValidationError):
+             # The motors answered; config.yaml is what is wrong. Trying other
+             # ports cannot fix that.
+diff --git a/tests/test_multibus_client.py b/tests/test_multibus_client.py
+new file mode 100644
+index 0000000..d757949
+--- /dev/null
++++ b/tests/test_multibus_client.py
+@@ -0,0 +1,403 @@
++"""Several motor buses behind one client (local addition, not upstream).
++
++Nothing here touches a serial port: buses are in-memory mock clients and the
++port search is fed a scripted answer.
++"""
++import inspect
++import os
++import shutil
++
++import numpy as np
++import pytest
++
++from orca_core import OrcaHand
++from orca_core.hardware import multibus_client as mb
++from orca_core.hardware.dynamixel_client import DynamixelClient
++from orca_core.hardware.mock_dynamixel_client import MockDynamixelClient
++from orca_core.hardware.motor_client import MotorClient
++
++REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++LEFT_CONFIG = os.path.join(
++    REPO_ROOT, "orca_core", "models", "v2", "orcahand-left", "config.yaml")
++
++ALL_IDS = list(range(1, 18))
++TWO_BUSES = {"index": [7, 8, 9], "middle": [6, 17, 2]}
++SIX_BUSES = {
++    "index": [7, 8, 9],
++    "middle": [6, 17, 2],
++    "ring": [5, 4, 3],
++    "pinky": [14, 15, 16],
++    "thumb": [13, 12, 11],
++    "wrist_cmc": [1, 10],
++}
++
++
++def write_buses(folder, buses, baudrate=1000000, parallel=False):
++    lines = [f"baudrate: {baudrate}", f"parallel: {str(parallel).lower()}", "buses:"]
++    for name, ids in buses.items():
++        lines.append(f"  {name}: {ids}")
++    path = os.path.join(str(folder), mb.BUSES_FILE)
++    with open(path, "w", encoding="utf-8") as handle:
++        handle.write("\n".join(lines) + "\n")
++    return path
++
++
++def fake_wiring(buses, extra_ports=()):
++    """``(ping, candidates)`` as if each bus sat on its own COM port."""
++    on_port = {f"COM{10 + i}": set(ids) for i, ids in enumerate(buses.values())}
++    for port in extra_ports:
++        on_port[port] = set()
++
++    def ping(port, baudrate, motor_ids):
++        return [m for m in motor_ids if m in on_port.get(port, ())]
++
++    return ping, (lambda: list(on_port))
++
++
++def make_client(tmp_path, buses, parallel=False, motor_ids=ALL_IDS):
++    spec = mb.load_buses(write_buses(tmp_path, buses, parallel=parallel))
++    ping, candidates = fake_wiring(buses)
++    created = {}
++
++    def factory(ids, port, baudrate):
++        created[port] = MockDynamixelClient(ids, port, baudrate)
++        return created[port]
++
++    client = mb.multibus_class_for(MockDynamixelClient)(
++        motor_ids, spec, 1000000, factory,
++        port_resolver=lambda s, b: mb.resolve_bus_ports(s, b, ping, candidates))
++    return client, created
++
++
++# ----- buses.yaml --------------------------------------------------------------
++
++def test_buses_file_accepts_both_shapes(tmp_path):
++    path = tmp_path / mb.BUSES_FILE
++    path.write_text(
++        "baudrate: 1000000\n"
++        "buses:\n"
++        "  index: [7, 8, 9]\n"
++        "  middle: {ids: [6, 17, 2], port: COM7}\n", encoding="utf-8")
++    spec = mb.load_buses(str(path))
++    assert [(b.name, b.motor_ids, b.port) for b in spec.buses] == [
++        ("index", (7, 8, 9), None), ("middle", (6, 17, 2), "COM7")]
++    assert spec.baudrate == 1000000 and spec.parallel is False
++
++
++def test_buses_file_survives_a_bom_and_non_ascii_comments(tmp_path):
++    path = tmp_path / mb.BUSES_FILE
++    path.write_bytes("﻿# 食指和中指\nbuses:\n  index: [7, 8, 9]\n".encode("utf-8"))
++    assert mb.load_buses(str(path)).buses[0].motor_ids == (7, 8, 9)
++
++
++@pytest.mark.parametrize("body, fragment", [
++    ("buses:\n  a: [7, 8]\n  b: [8, 9]\n", "both"),
++    ("buses:\n  a: [7, 7]\n", "twice"),
++    ("buses:\n  a: []\n", "list of motor IDs"),
++    ("baudrate: 1000000\n", "buses"),
++    ("buses:\n  a: {ids: [1], port: COM3}\n  b: {ids: [2], port: com3}\n", "port"),
++])
++def test_buses_file_mistakes_are_refused(tmp_path, body, fragment):
++    path = tmp_path / mb.BUSES_FILE
++    path.write_text(body, encoding="utf-8")
++    with pytest.raises(mb.MultiBusConfigError, match=fragment):
++        mb.load_buses(str(path))
++
++
++def test_missing_buses_file_says_where_it_looked(tmp_path):
++    with pytest.raises(mb.MultiBusConfigError, match="not found"):
++        mb.load_buses(str(tmp_path / mb.BUSES_FILE))
++
++
++# ----- which port is which bus -------------------------------------------------
++
++def test_ports_are_matched_by_the_motor_ids_that_answer(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    ping, candidates = fake_wiring(TWO_BUSES, extra_ports=["COM3"])
++    assert mb.resolve_bus_ports(spec, 1000000, ping, candidates) == {
++        "index": "COM10", "middle": "COM11"}
++
++
++def test_swapping_usb_sockets_does_not_swap_fingers(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    swapped = {"middle": TWO_BUSES["middle"], "index": TWO_BUSES["index"]}
++    ping, candidates = fake_wiring(swapped)
++    assert mb.resolve_bus_ports(spec, 1000000, ping, candidates) == {
++        "middle": "COM10", "index": "COM11"}
++
++
++def test_a_port_carrying_two_fingers_is_refused(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    with pytest.raises(mb.MultiBusConfigError, match="splits over buses"):
++        mb.resolve_bus_ports(spec, 1000000,
++                             lambda port, baud, ids: [7, 6], lambda: ["COM5"])
++
++
++def test_two_ports_for_one_finger_are_refused(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    with pytest.raises(mb.MultiBusConfigError, match="answers on both"):
++        mb.resolve_bus_ports(spec, 1000000,
++                             lambda port, baud, ids: [7], lambda: ["COM5", "COM6"])
++
++
++def test_a_bus_nobody_answers_for_is_refused_and_named(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    ping, candidates = fake_wiring({"index": [7, 8, 9]})
++    with pytest.raises(mb.MultiBusConfigError, match="'middle'"):
++        mb.resolve_bus_ports(spec, 1000000, ping, candidates)
++
++
++def test_written_ports_are_kept_and_not_probed(tmp_path):
++    path = tmp_path / mb.BUSES_FILE
++    path.write_text("buses:\n  index: {ids: [7, 8, 9], port: COM5}\n", encoding="utf-8")
++    spec = mb.load_buses(str(path))
++
++    def no_ping(*args):
++        raise AssertionError("a written port must not be probed")
++
++    assert mb.resolve_bus_ports(spec, 1000000, no_ping, lambda: ["COM5"]) == {
++        "index": "COM5"}
++
++
++# ----- the combined client -----------------------------------------------------
++
++@pytest.mark.parametrize("parallel", [False, True])
++def test_writes_are_split_and_reads_come_back_in_config_order(tmp_path, parallel):
++    client, created = make_client(tmp_path, SIX_BUSES, parallel=parallel)
++    client.connect()
++    try:
++        client.set_torque_enabled(ALL_IDS, True)
++        targets = np.array([0.01 * m for m in ALL_IDS], dtype=np.float32)
++        client.write_desired_pos(ALL_IDS, targets)
++
++        snapshot = client.read_position_velocity_current()
++        np.testing.assert_allclose(snapshot.position, targets, atol=1e-6)
++        assert client.last_read_ok is True
++
++        # Each bus was only ever told about its own motors.
++        index_bus = created["COM10"]
++        assert index_bus.motor_ids == [7, 8, 9]
++        np.testing.assert_allclose(
++            index_bus.read_position_velocity_current().position,
++            [0.07, 0.08, 0.09], atol=1e-6)
++    finally:
++        client.disconnect()
++    assert client.is_connected is False
++    assert all(not bus.is_connected for bus in created.values())
++
++
++def test_a_partial_write_reaches_only_the_bus_it_names(tmp_path):
++    client, created = make_client(tmp_path, TWO_BUSES)
++    client.connect()
++    client.set_torque_enabled([7, 8, 9, 6, 17, 2], True)
++    client.write_desired_pos([17, 9], np.array([0.5, -0.5]))
++    position = client.read_position_velocity_current().position
++    by_id = dict(zip(ALL_IDS, position))
++    assert by_id[17] == pytest.approx(0.5) and by_id[9] == pytest.approx(-0.5)
++    assert all(by_id[m] == 0.0 for m in ALL_IDS if m not in (17, 9))
++    client.disconnect()
++
++
++def test_motors_on_no_bus_look_unplugged(tmp_path):
++    client, _ = make_client(tmp_path, TWO_BUSES)
++    client.connect()
++    assert client.responding_motor_ids() == [2, 6, 7, 8, 9, 17]
++    assert client.absent_motor_ids() == [1, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16]
++    # Commands naming them are dropped, not errors.
++    assert client.set_torque_enabled(ALL_IDS, True) == []
++    client.write_desired_pos(ALL_IDS, np.zeros(17))
++    assert client.read_hardware_error(1) is None
++    assert client.read_goal_currents([1, 7])[1] is None
++    assert len(client.read_temperature()) == 17
++    client.disconnect()
++
++
++def test_one_stale_bus_makes_the_whole_read_stale(tmp_path):
++    client, created = make_client(tmp_path, TWO_BUSES)
++    client.connect()
++    client.read_position_velocity_current()
++    assert client.last_read_ok is True
++    created["COM11"].last_read_ok = False
++    client.read_position_velocity_current()
++    assert client.last_read_ok is False
++    client.disconnect()
++
++
++def test_failed_connect_closes_the_buses_already_opened(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    ping, candidates = fake_wiring(TWO_BUSES)
++    made = []
++
++    def factory(ids, port, baudrate):
++        bus = MockDynamixelClient(ids, port, baudrate)
++        if port == "COM11":
++            bus.connect = lambda: (_ for _ in ()).throw(OSError("unplugged"))
++        made.append(bus)
++        return bus
++
++    client = mb.multibus_class_for(MockDynamixelClient)(
++        ALL_IDS, spec, 1000000, factory,
++        port_resolver=lambda s, b: mb.resolve_bus_ports(s, b, ping, candidates))
++    with pytest.raises(ConnectionError, match="middle"):
++        client.connect()
++    assert client.is_connected is False
++    assert made[0].is_connected is False
++
++
++def test_a_bus_where_nothing_answers_fails_the_connect(tmp_path):
++    spec = mb.load_buses(write_buses(tmp_path, TWO_BUSES))
++    ping, candidates = fake_wiring(TWO_BUSES)
++
++    def factory(ids, port, baudrate):
++        bus = MockDynamixelClient(ids, port, baudrate)
++        if port == "COM10":
++            bus.silent_motor_ids = set(ids)
++        return bus
++
++    client = mb.multibus_class_for(MockDynamixelClient)(
++        ALL_IDS, spec, 1000000, factory,
++        port_resolver=lambda s, b: mb.resolve_bus_ports(s, b, ping, candidates))
++    with pytest.raises(ConnectionError, match="index"):
++        client.connect()
++
++
++def test_table_naming_a_motor_the_hand_does_not_have_is_refused(tmp_path):
++    with pytest.raises(mb.MultiBusConfigError, match="99"):
++        make_client(tmp_path, {"index": [7, 8, 99]})
++
++
++def test_family_constants_are_the_motor_family_s_own():
++    cls = mb.multibus_class_for(DynamixelClient)
++    for name in ("default_max_current_ma", "current_scale_ma", "supported_modes",
++                 "waits_for_motion", "supports_reboot", "position_range_rad",
++                 "sweep_current_ma", "slack_test_current_ma", "max_operating_temp_c"):
++        assert getattr(cls, name) == getattr(DynamixelClient, name), name
++    assert issubclass(cls, DynamixelClient)
++
++
++# Inherited as they are: they read class constants only, or build on methods
++# that are routed.
++SAFE_TO_INHERIT = {
++    "canonical_faults", "check_connected", "cleanup_open_clients",
++    "decode_hardware_error", "default_profile", "probe", "scannable_baudrates",
++    "servo_limits", "split_faults", "supported_baudrates",
++    # Called by a single bus on itself while it handles a reply.
++    "handle_packet_result",
++}
++
++
++def test_every_public_method_of_the_bus_client_is_routed():
++    """The alarm for upstream changes.
++
++    A method added to the single-bus client and not routed here would run
++    against a combined client that has no serial port. If this fails after
++    updating orca_core, add the named method to multibus_client.py.
++    """
++    routed = set(vars(mb.MultiBusClient))
++    unrouted = sorted(
++        name for name, member in inspect.getmembers(DynamixelClient)
++        if not name.startswith("_")
++        and (inspect.isfunction(member) or inspect.ismethod(member)
++             or isinstance(inspect.getattr_static(DynamixelClient, name), property))
++        and name not in routed and name not in SAFE_TO_INHERIT)
++    assert unrouted == []
++
++
++def test_single_bus_internals_fail_loudly(tmp_path):
++    client, _ = make_client(tmp_path, TWO_BUSES)
++    with pytest.raises(AttributeError, match="no serial port of its own"):
++        client.port_handler
++    with pytest.raises(NotImplementedError, match="one bus at a time"):
++        client.change_motor_id(7, 8)
++
++
++# ----- through OrcaHand, the way the scripts use it ----------------------------
++
++@pytest.fixture
++def multibus_dir(tmp_path, monkeypatch):
++    """A left-hand model folder set to ``port: multibus`` with mock buses."""
++    text = open(LEFT_CONFIG, encoding="utf-8").read()
++    assert "port: auto" in text
++    (tmp_path / "config.yaml").write_text(
++        text.replace("port: auto", "port: multibus"), encoding="utf-8")
++
++    def wire(buses, parallel=False):
++        write_buses(tmp_path, buses, parallel=parallel)
++        ping, candidates = fake_wiring(buses)
++        monkeypatch.setattr(mb, "_ping_ids", ping)
++        monkeypatch.setattr(mb, "_candidate_ports", candidates)
++        monkeypatch.setattr(
++            "orca_core.hardware.motor_factory.motor_client_class",
++            lambda motor_type: MockDynamixelClient)
++        return str(tmp_path / "config.yaml")
++
++    return wire
++
++
++@pytest.mark.parametrize("parallel", [False, True])
++def test_hand_connects_calibrates_and_moves_over_six_buses(multibus_dir, parallel):
++    hand = OrcaHand(config_path=multibus_dir(SIX_BUSES, parallel=parallel))
++    ok, message = hand.connect(interactive=False)
++    assert ok, message
++    try:
++        assert isinstance(hand._motor_client, mb.MultiBusClient)
++        assert hand.config.baudrate == 1000000
++        assert hand.absent_motor_ids == []
++        hand.calibrate(persist=False)
++
++        target = {}
++        for joint in hand.config.joint_ids:
++            low, high = hand.config.joint_roms_dict[joint]
++            target[joint] = (low + high) / 2.0
++        hand.set_joint_positions(target)
++        actual = hand.get_joint_position().as_dict()
++        for joint, expected in target.items():
++            assert actual[joint] == pytest.approx(expected, abs=1e-4), joint
++    finally:
++        ok, message = hand.disconnect()
++    assert ok, message
++    assert hand.is_connected() is False
++
++
++def test_hand_with_two_fingers_reports_the_other_joints_absent(multibus_dir):
++    hand = OrcaHand(config_path=multibus_dir(TWO_BUSES))
++    ok, message = hand.connect(interactive=False)
++    assert ok, message
++    try:
++        assert sorted(hand.absent_motor_ids) == [1, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16]
++        assert len(hand.get_motor_pos()) == 17
++        hand.enable_torque()
++        hand.disable_torque()
++    finally:
++        hand.disconnect()
++
++
++def test_failed_multibus_connect_never_falls_back_to_one_port(multibus_dir, monkeypatch):
++    config_path = multibus_dir(TWO_BUSES)
++    monkeypatch.setattr(mb, "_ping_ids", lambda port, baud, ids: [])
++
++    def no_fallback(*args, **kwargs):
++        raise AssertionError("a multibus hand must not try a single port")
++
++    monkeypatch.setattr("orca_core.hardware_hand.auto_detect_port", no_fallback)
++    monkeypatch.setattr("orca_core.hardware_hand.get_and_choose_port", no_fallback)
++    hand = OrcaHand(config_path=config_path)
++    ok, message = hand.connect(interactive=True)
++    assert ok is False
++    assert "Multibus connection failed" in message and "no port answered" in message
++
++
++def test_missing_table_is_reported_by_connect(tmp_path):
++    text = open(LEFT_CONFIG, encoding="utf-8").read()
++    (tmp_path / "config.yaml").write_text(
++        text.replace("port: auto", "port: multibus"), encoding="utf-8")
++    hand = OrcaHand(config_path=str(tmp_path / "config.yaml"))
++    ok, message = hand.connect(interactive=False)
++    assert ok is False and mb.BUSES_FILE in message
++
++
++def test_ordinary_ports_are_untouched(tmp_path):
++    """Without the keyword, nothing in this file is reached."""
++    assert mb.is_multibus_port("multibus") and mb.is_multibus_port(" MultiBus ")
++    for port in ("COM5", "auto", "/dev/ttyUSB0", None, "multibus2"):
++        assert not mb.is_multibus_port(port)
