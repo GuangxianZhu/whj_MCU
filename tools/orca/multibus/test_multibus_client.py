@@ -104,6 +104,16 @@ def test_buses_file_mistakes_are_refused(tmp_path, body, fragment):
         mb.load_buses(str(path))
 
 
+def test_tabs_and_wrong_encoding_get_a_plain_explanation(tmp_path):
+    path = tmp_path / mb.BUSES_FILE
+    path.write_text("buses:\n\tindex: [7, 8, 9]\n", encoding="utf-8")
+    with pytest.raises(mb.MultiBusConfigError, match="not valid YAML near line 2"):
+        mb.load_buses(str(path))
+    path.write_bytes("buses:\n  index: [7, 8, 9]  # 食指\n".encode("shift_jis"))
+    with pytest.raises(mb.MultiBusConfigError, match="UTF-8"):
+        mb.load_buses(str(path))
+
+
 def test_missing_buses_file_says_where_it_looked(tmp_path):
     with pytest.raises(mb.MultiBusConfigError, match="not found"):
         mb.load_buses(str(tmp_path / mb.BUSES_FILE))
@@ -207,7 +217,8 @@ def test_motors_on_no_bus_look_unplugged(tmp_path):
     assert client.set_torque_enabled(ALL_IDS, True) == []
     client.write_desired_pos(ALL_IDS, np.zeros(17))
     assert client.read_hardware_error(1) is None
-    assert client.read_goal_currents([1, 7])[1] is None
+    if hasattr(MotorClient, "read_goal_currents"):  # newer orca_core only
+        assert client.read_goal_currents([1, 7])[1] is None
     assert len(client.read_temperature()) == 17
     client.disconnect()
 
@@ -271,7 +282,8 @@ def test_family_constants_are_the_motor_family_s_own():
     for name in ("default_max_current_ma", "current_scale_ma", "supported_modes",
                  "waits_for_motion", "supports_reboot", "position_range_rad",
                  "sweep_current_ma", "slack_test_current_ma", "max_operating_temp_c"):
-        assert getattr(cls, name) == getattr(DynamixelClient, name), name
+        if hasattr(DynamixelClient, name):  # some were added in later versions
+            assert getattr(cls, name) == getattr(DynamixelClient, name), name
     assert issubclass(cls, DynamixelClient)
 
 
@@ -370,6 +382,86 @@ def test_hand_with_two_fingers_reports_the_other_joints_absent(multibus_dir):
         hand.disable_torque()
     finally:
         hand.disconnect()
+
+
+TWO_FINGER_JOINTS = ["index_abd", "index_mcp", "index_pip",
+                     "middle_abd", "middle_mcp", "middle_pip"]
+
+
+def _calibration_file(config_path):
+    import yaml
+    path = os.path.join(os.path.dirname(config_path), "calibration.yaml")
+    with open(path, encoding="utf-8") as handle:
+        return yaml.safe_load(handle)
+
+
+@pytest.fixture
+def two_finger_hand(multibus_dir):
+    """Two boards on a hand whose calibration.yaml already covers all 17 motors."""
+    full = OrcaHand(config_path=multibus_dir(SIX_BUSES))
+    ok, message = full.connect(interactive=False)
+    assert ok, message
+    full.calibrate(persist=True)
+    full.disconnect()
+
+    config_path = multibus_dir(TWO_BUSES)
+    before = _calibration_file(config_path)
+    hand = OrcaHand(config_path=config_path)
+    ok, message = hand.connect(interactive=False)
+    assert ok, message
+    yield hand, config_path, before
+    hand.disconnect()
+
+
+@pytest.mark.parametrize("joints", [None, TWO_FINGER_JOINTS])
+def test_calibrating_two_fingers_keeps_the_other_fingers_calibration(two_finger_hand, joints):
+    """What ``calibrate.py`` and ``calibrate.py --fingers index middle`` do."""
+    hand, config_path, before = two_finger_hand
+    assert hand.calibrated, "the stored calibration is picked up"
+    events = []
+    hand.calibrate(joints=joints, persist=True, progress_callback=events.append)
+
+    skipped = {j for e in events if e.get("event") == "joints_skipped" for j in e["joints"]}
+    assert not skipped & set(TWO_FINGER_JOINTS)
+    if joints is None:
+        assert skipped == set(hand.absent_joints) - {"wrist"} or skipped == set(hand.absent_joints)
+
+    after = _calibration_file(config_path)
+    absent = set(hand.absent_motor_ids)
+    for key, stored in before.items():
+        if not isinstance(stored, dict):
+            continue
+        for item, value in stored.items():
+            if item in absent or item in hand.absent_joints:
+                assert after[key][item] == value, (key, item)
+    assert hand.calibrated
+
+
+def test_tension_hold_pulls_only_the_two_fingers(two_finger_hand):
+    """What ``tension.py`` does: wind, then hold until stopped."""
+    import threading
+    hand, _, _ = two_finger_hand
+    holding = threading.Event()
+    hand.tension(move_motors=True, blocking=False,
+                 progress_callback=lambda e: holding.set() if e.get("phase") == "holding" else None)
+    assert holding.wait(20), "never reached the holding phase"
+    assert hand.stop_task(timeout=20)
+    client = hand.motor_client
+    assert client.motors_unable_to_move() == set()
+
+
+def test_two_fingers_open_and_close_together(two_finger_hand):
+    hand, _, _ = two_finger_hand
+    hand.init_joints()
+    roms = hand.config.joint_roms_dict
+    for fraction in (0.8, 0.2, 0.8, 0.2):
+        pose = {j: roms[j][0] + fraction * (roms[j][1] - roms[j][0])
+                for j in ("index_mcp", "index_pip", "middle_mcp", "middle_pip")}
+        hand.set_joint_positions(pose)
+        now = hand.get_joint_position().as_dict()
+        for joint, target in pose.items():
+            assert now[joint] == pytest.approx(target, abs=1e-3), joint
+    hand.set_neutral_position()
 
 
 def test_failed_multibus_connect_never_falls_back_to_one_port(multibus_dir, monkeypatch):
