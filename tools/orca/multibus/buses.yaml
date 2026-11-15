@@ -19,5 +19,7 @@ buses:
   # thumb:     [13, 12, 11]    # 拇指 3 个
   # wrist_cmc: [1, 10]         # 手腕 + 拇指 CMC
 
-  # 如果自动找不到，也可以把 COM 号写死（两种写法可以混用）：
-  # index: {ids: [7, 8, 9], port: COM5}
+  # 也可以把 COM 号写死（两种写法可以混用）。第一次上机建议用这种：
+  # 软件不去试别的串口，未知数最少。COM 号用 check_buses.py 查。
+  # index:  {ids: [7, 8, 9],  port: COM5}
+  # middle: {ids: [6, 17, 2], port: COM6}

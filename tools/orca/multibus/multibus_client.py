@@ -94,8 +94,19 @@ def load_buses(path: str) -> MultiBusSpec:
             f"{path}. Create it next to config.yaml.")
     # utf-8-sig: explicit so a non-UTF-8 Windows locale cannot misread the
     # file, and tolerant of the BOM Notepad may add.
-    with open(path, "r", encoding="utf-8-sig") as handle:
-        raw = yaml.safe_load(handle) or {}
+    try:
+        with open(path, "r", encoding="utf-8-sig") as handle:
+            raw = yaml.safe_load(handle) or {}
+    except UnicodeDecodeError:
+        raise MultiBusConfigError(
+            f"{path} is not saved as UTF-8. Save it as UTF-8 in your editor, "
+            f"or delete the comments that are not plain English.") from None
+    except yaml.YAMLError as exc:
+        mark = getattr(exc, "problem_mark", None)
+        where = f" near line {mark.line + 1}" if mark is not None else ""
+        raise MultiBusConfigError(
+            f"{path} is not valid YAML{where}. Indent with spaces, never tabs, "
+            f"and keep the bus names lined up under 'buses:'.") from None
     if not isinstance(raw, dict):
         raise MultiBusConfigError(f"{path}: the file must be a mapping.")
 
@@ -465,10 +476,14 @@ class MultiBusClient(MotorClient):
                         f"bus '{spec.name}' on {port}: {exc}") from exc
                 answered = list(client.responding_motor_ids())
                 if not answered:
+                    hint = ("the port may belong to another bus (swap the "
+                            f"'port:' entries in {self._spec.path}); otherwise "
+                            if spec.port else "")
                     raise ConnectionError(
                         f"bus '{spec.name}' on {port}: none of motor IDs "
-                        f"{list(spec.motor_ids)} answered at {self.baudrate} baud "
-                        f"(check power, wiring and the baud rate)")
+                        f"{list(spec.motor_ids)} answered at {self.baudrate} baud; "
+                        f"{hint}check servo power, the data and ground wires, "
+                        f"and the baud rate")
                 missing = [m for m in spec.motor_ids if m not in answered]
                 if missing:
                     logger.warning(
